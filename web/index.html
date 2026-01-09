@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Clash Royale Tournament PRO – 1024</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script type="module">
+    /* ================= FIREBASE ================= */
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged }
+      from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+    import {
+      getFirestore, collection, addDoc, getDocs,
+      updateDoc, doc, query, where
+    } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "API_KEY",
+      authDomain: "AUTH_DOMAIN",
+      projectId: "PROJECT_ID",
+      storageBucket: "STORAGE",
+      messagingSenderId: "SENDER_ID",
+      appId: "APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth();
+    const db = getFirestore();
+
+    let players = [];
+
+    /* ================= PLAYER REG ================= */
+    window.registerPlayer = async () => {
+      if (players.length >= 1024) {
+        alert("Iscrizioni chiuse");
+        return;
+      }
+
+      const nick = nickname.value;
+      const tag = playerTag.value;
+      const discord = discordUser.value;
+
+      if (!nick || !tag || !discord) return;
+
+      const q = query(collection(db, "players"), where("discord", "==", discord));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        alert("Discord già registrato");
+        return;
+      }
+
+      await addDoc(collection(db, "players"), {
+        nick, tag, discord,
+        checkedIn: false,
+        group: null,
+        qualified: false
+      });
+
+      nickname.value = playerTag.value = discordUser.value = "";
+      loadPlayers();
+    };
+
+    /* ================= LOAD PLAYERS ================= */
+    window.loadPlayers = async () => {
+      players = [];
+      const snap = await getDocs(collection(db, "players"));
+      snap.forEach(d => players.push({ id: d.id, ...d.data() }));
+
+      totalPlayers.textContent = players.length;
+      playerList.innerHTML = "";
+      players.forEach(p => {
+        const li = document.createElement("li");
+        li.textContent = `${p.nick} (${p.discord}) – ${p.group || "-"}`;
+        playerList.appendChild(li);
+      });
+    };
+
+    /* ================= ADMIN LOGIN ================= */
+    window.adminLogin = async () => {
+      await signInWithEmailAndPassword(auth, adminEmail.value, adminPassword.value);
+    };
+
+    onAuthStateChanged(auth, user => {
+      if (user) adminPanel.classList.remove("hidden");
+    });
+
+    /* ================= ASSIGN GROUPS ================= */
+    window.assignGroups = async () => {
+      if (players.length !== 1024) {
+        alert("Servono esattamente 1024 giocatori");
+        return;
+      }
+
+      players.sort(() => Math.random() - 0.5);
+      let g = 1;
+
+      for (let i = 0; i < players.length; i++) {
+        await updateDoc(doc(db, "players", players[i].id), {
+          group: "A" + g
+        });
+        if ((i + 1) % 8 === 0) g++;
+      }
+
+      alert("Gironi assegnati");
+      loadPlayers();
+    };
+
+    /* ================= GENERATE BRACKET ================= */
+    window.generateBracket = async () => {
+      const qualified = players.filter(p => p.qualified);
+      if (qualified.length !== 256) {
+        alert("Servono 256 qualificati");
+        return;
+      }
+
+      qualified.sort(() => Math.random() - 0.5);
+
+      for (let i = 0; i < qualified.length; i += 2) {
+        await addDoc(collection(db, "bracket"), {
+          round: 1,
+          p1: qualified[i].discord,
+          p2: qualified[i + 1].discord,
+          winner: null,
+          startTime: null,
+          status: "pending"
+        });
+      }
+
+      alert("Bracket generato");
+    };
+
+    window.onload = loadPlayers;
+  </script>
+</head>
+
+<body class="bg-gray-900 text-white p-6">
+
+<div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+
+  <!-- PLAYER -->
+  <div class="bg-gray-800 p-6 rounded-xl">
+    <h2 class="text-xl font-bold mb-4">🎮 Iscrizione Giocatore</h2>
+    <input id="nickname" class="w-full mb-2 p-2 bg-gray-700 rounded" placeholder="Nickname">
+    <input id="playerTag" class="w-full mb-2 p-2 bg-gray-700 rounded" placeholder="Player Tag">
+    <input id="discordUser" class="w-full mb-2 p-2 bg-gray-700 rounded" placeholder="Discord username">
+    <button onclick="registerPlayer()" class="w-full bg-yellow-500 text-black p-2 rounded font-bold">
+      Iscriviti
+    </button>
+  </div>
+
+  <!-- ADMIN -->
+  <div class="bg-gray-800 p-6 rounded-xl">
+    <h2 class="text-xl font-bold mb-2">🔐 Admin</h2>
+
+    <input id="adminEmail" class="w-full mb-2 p-2 bg-gray-700 rounded" placeholder="Email">
+    <input id="adminPassword" type="password" class="w-full mb-2 p-2 bg-gray-700 rounded" placeholder="Password">
+    <button onclick="adminLogin()" class="w-full bg-blue-500 p-2 rounded mb-4">Login</button>
+
+    <div id="adminPanel" class="hidden">
+      <p>Iscritti: <span id="totalPlayers">0</span>/1024</p>
+      <button onclick="assignGroups()" class="mt-2 bg-green-500 p-2 rounded w-full">Assegna Gironi</button>
+      <button onclick="generateBracket()" class="mt-2 bg-purple-500 p-2 rounded w-full">Genera Bracket</button>
+      <ul id="playerList" class="mt-4 max-h-64 overflow-y-auto text-sm"></ul>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
