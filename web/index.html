@@ -4,89 +4,128 @@
   <meta charset="UTF-8">
   <title>Clash Royale Tournament PRO – 1024</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
 
+  <!-- FIREBASE + APP -->
   <script type="module">
     /* ================= FIREBASE ================= */
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged }
-      from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
     import {
-      getFirestore, collection, addDoc, getDocs,
-      updateDoc, doc, query, where
+      getAuth,
+      signInWithEmailAndPassword,
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      getDocs,
+      updateDoc,
+      doc,
+      query,
+      where
     } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
+    /* ====== CONFIG FIREBASE (LA TUA) ====== */
     const firebaseConfig = {
-      apiKey: "API_KEY",
-      authDomain: "AUTH_DOMAIN",
-      projectId: "PROJECT_ID",
-      storageBucket: "STORAGE",
-      messagingSenderId: "SENDER_ID",
-      appId: "APP_ID"
+      apiKey: "AIzaSyBUjtbuQfc2drjqivgoLFEyQ9k4Un4f6fQ",
+      authDomain: "allmighty-tournaments.firebaseapp.com",
+      projectId: "allmighty-tournaments",
+      storageBucket: "allmighty-tournaments.firebasestorage.app",
+      messagingSenderId: "876830337732",
+      appId: "1:876830337732:web:12509e3197a65e6350b791"
     };
 
+    /* ====== INIT ====== */
     const app = initializeApp(firebaseConfig);
-    const auth = getAuth();
-    const db = getFirestore();
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    console.log("🔥 Firebase collegato correttamente");
 
     let players = [];
 
-    /* ================= PLAYER REG ================= */
+    /* ================= REGISTRA GIOCATORE ================= */
     window.registerPlayer = async () => {
       if (players.length >= 1024) {
         alert("Iscrizioni chiuse");
         return;
       }
 
-      const nick = nickname.value;
-      const tag = playerTag.value;
-      const discord = discordUser.value;
+      const nick = nickname.value.trim();
+      const tag = playerTag.value.trim();
+      const discord = discordUser.value.trim();
 
-      if (!nick || !tag || !discord) return;
+      if (!nick || !tag || !discord) {
+        alert("Compila tutti i campi");
+        return;
+      }
 
       const q = query(collection(db, "players"), where("discord", "==", discord));
       const snap = await getDocs(q);
+
       if (!snap.empty) {
         alert("Discord già registrato");
         return;
       }
 
       await addDoc(collection(db, "players"), {
-        nick, tag, discord,
+        nick,
+        tag,
+        discord,
         checkedIn: false,
         group: null,
-        qualified: false
+        qualified: false,
+        createdAt: Date.now()
       });
 
-      nickname.value = playerTag.value = discordUser.value = "";
+      nickname.value = "";
+      playerTag.value = "";
+      discordUser.value = "";
+
       loadPlayers();
+      alert("Registrazione completata");
     };
 
-    /* ================= LOAD PLAYERS ================= */
+    /* ================= CARICA GIOCATORI ================= */
     window.loadPlayers = async () => {
       players = [];
       const snap = await getDocs(collection(db, "players"));
+
       snap.forEach(d => players.push({ id: d.id, ...d.data() }));
 
       totalPlayers.textContent = players.length;
       playerList.innerHTML = "";
+
       players.forEach(p => {
         const li = document.createElement("li");
-        li.textContent = `${p.nick} (${p.discord}) – ${p.group || "-"}`;
+        li.textContent = `${p.nick} (${p.discord}) – ${p.group ?? "-"}`;
         playerList.appendChild(li);
       });
     };
 
-    /* ================= ADMIN LOGIN ================= */
+    /* ================= LOGIN ADMIN ================= */
     window.adminLogin = async () => {
-      await signInWithEmailAndPassword(auth, adminEmail.value, adminPassword.value);
+      try {
+        await signInWithEmailAndPassword(
+          auth,
+          adminEmail.value,
+          adminPassword.value
+        );
+      } catch (e) {
+        alert("Login admin fallito");
+      }
     };
 
     onAuthStateChanged(auth, user => {
-      if (user) adminPanel.classList.remove("hidden");
+      if (user) {
+        adminPanel.classList.remove("hidden");
+      }
     });
 
-    /* ================= ASSIGN GROUPS ================= */
+    /* ================= ASSEGNA GIRONI ================= */
     window.assignGroups = async () => {
       if (players.length !== 1024) {
         alert("Servono esattamente 1024 giocatori");
@@ -100,6 +139,7 @@
         await updateDoc(doc(db, "players", players[i].id), {
           group: "A" + g
         });
+
         if ((i + 1) % 8 === 0) g++;
       }
 
@@ -107,9 +147,10 @@
       loadPlayers();
     };
 
-    /* ================= GENERATE BRACKET ================= */
+    /* ================= GENERA BRACKET ================= */
     window.generateBracket = async () => {
       const qualified = players.filter(p => p.qualified);
+
       if (qualified.length !== 256) {
         alert("Servono 256 qualificati");
         return;
@@ -123,8 +164,8 @@
           p1: qualified[i].discord,
           p2: qualified[i + 1].discord,
           winner: null,
-          startTime: null,
-          status: "pending"
+          status: "pending",
+          createdAt: Date.now()
         });
       }
 
@@ -145,6 +186,7 @@
     <input id="nickname" class="w-full mb-2 p-2 bg-gray-700 rounded" placeholder="Nickname">
     <input id="playerTag" class="w-full mb-2 p-2 bg-gray-700 rounded" placeholder="Player Tag">
     <input id="discordUser" class="w-full mb-2 p-2 bg-gray-700 rounded" placeholder="Discord username">
+
     <button onclick="registerPlayer()" class="w-full bg-yellow-500 text-black p-2 rounded font-bold">
       Iscriviti
     </button>
@@ -156,16 +198,27 @@
 
     <input id="adminEmail" class="w-full mb-2 p-2 bg-gray-700 rounded" placeholder="Email">
     <input id="adminPassword" type="password" class="w-full mb-2 p-2 bg-gray-700 rounded" placeholder="Password">
-    <button onclick="adminLogin()" class="w-full bg-blue-500 p-2 rounded mb-4">Login</button>
+
+    <button onclick="adminLogin()" class="w-full bg-blue-500 p-2 rounded mb-4">
+      Login
+    </button>
 
     <div id="adminPanel" class="hidden">
       <p>Iscritti: <span id="totalPlayers">0</span>/1024</p>
-      <button onclick="assignGroups()" class="mt-2 bg-green-500 p-2 rounded w-full">Assegna Gironi</button>
-      <button onclick="generateBracket()" class="mt-2 bg-purple-500 p-2 rounded w-full">Genera Bracket</button>
+
+      <button onclick="assignGroups()" class="mt-2 bg-green-500 p-2 rounded w-full">
+        Assegna Gironi
+      </button>
+
+      <button onclick="generateBracket()" class="mt-2 bg-purple-500 p-2 rounded w-full">
+        Genera Bracket
+      </button>
+
       <ul id="playerList" class="mt-4 max-h-64 overflow-y-auto text-sm"></ul>
     </div>
   </div>
 
 </div>
+
 </body>
 </html>
