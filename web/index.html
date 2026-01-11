@@ -11,22 +11,35 @@
   body {
     margin: 0;
     overflow-x: hidden;
+    font-family: system-ui, sans-serif;
   }
+
   video.bg {
     position: fixed;
-    top: 0; left: 0;
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
     z-index: -1;
   }
+
+  .glass {
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 1rem;
+    box-shadow: 0 0 40px rgba(0,0,0,0.6);
+  }
 </style>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, doc, setDoc, getDoc } 
-from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import {
+  getFirestore, collection, addDoc, getDocs,
+  doc, setDoc, getDoc
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
+/* 🔥 FIREBASE CONFIG */
 const firebaseConfig = {
   apiKey: "AIzaSyBUjtbuQfc2drjqivgoLFEyQ9k4Un4f6fQ",
   authDomain: "allmighty-tournaments.firebaseapp.com",
@@ -43,7 +56,7 @@ let players = [];
 let bracket = [];
 let startTime = null;
 
-/* ---------- LOAD STATUS ---------- */
+/* ================= LOAD STATUS ================= */
 async function loadStatus() {
   const snap = await getDoc(doc(db, "tournament", "status"));
   if (snap.exists() && snap.data().started) {
@@ -53,41 +66,56 @@ async function loadStatus() {
   }
 }
 
-/* ---------- REGISTER PLAYER ---------- */
+/* ================= REGISTRATION ================= */
 window.registerPlayer = async () => {
   const nick = nickname.value.trim();
   const tag = playerTag.value.trim();
   const discord = discordUser.value.trim();
-  if (!nick || !tag || !discord) return;
 
-  await addDoc(collection(db, "players"), { nick, tag, discord });
-  alert("Iscritto!");
+  if (!nick || !tag || !discord) {
+    alert("Compila tutti i campi");
+    return;
+  }
+
+  await addDoc(collection(db, "players"), {
+    nick, tag, discord, createdAt: Date.now()
+  });
+
+  nickname.value = "";
+  playerTag.value = "";
+  discordUser.value = "";
+
+  alert("Iscrizione completata");
 };
 
-/* ---------- START TOURNAMENT ---------- */
+/* ================= START TOURNAMENT ================= */
 window.startTournament = async () => {
-  const pwd = prompt("Password");
+  const pwd = prompt("Inserisci password");
   if (pwd !== "robifede") return alert("Password errata");
 
   const statusRef = doc(db, "tournament", "status");
-  const snap = await getDoc(statusRef);
-  if (snap.exists() && snap.data().started) {
+  const statusSnap = await getDoc(statusRef);
+
+  if (statusSnap.exists() && statusSnap.data().started) {
     return alert("Torneo già iniziato");
   }
 
-  const pSnap = await getDocs(collection(db, "players"));
+  const snap = await getDocs(collection(db, "players"));
   players = [];
-  pSnap.forEach(d => players.push(d.data()));
+  snap.forEach(d => players.push(d.data()));
 
-  if (players.length < 2) return alert("Giocatori insufficienti");
+  if (players.length < 2) {
+    alert("Giocatori insufficienti");
+    return;
+  }
 
   players.sort(() => Math.random() - 0.5);
-
   bracket = [];
+
   for (let i = 0; i < players.length; i += 2) {
     bracket.push({
       p1: players[i]?.nick || "BYE",
-      p2: players[i+1]?.nick || "BYE"
+      p2: players[i + 1]?.nick || "BYE"
     });
   }
 
@@ -98,16 +126,16 @@ window.startTournament = async () => {
   startTimer();
 };
 
-/* ---------- END TOURNAMENT ---------- */
+/* ================= END TOURNAMENT ================= */
 window.endTournament = async () => {
-  const pwd = prompt("Password");
+  const pwd = prompt("Inserisci password");
   if (pwd !== "robifede") return alert("Password errata");
 
   await setDoc(doc(db, "tournament", "status"), { started: false });
   location.reload();
 };
 
-/* ---------- UI ---------- */
+/* ================= UI ================= */
 function showBracket() {
   registration.classList.add("hidden");
   bracketPage.classList.remove("hidden");
@@ -115,6 +143,7 @@ function showBracket() {
   bracketList.innerHTML = "";
   bracket.forEach(m => {
     const li = document.createElement("li");
+    li.className = "bg-black/50 p-3 rounded";
     li.textContent = `${m.p1} vs ${m.p2}`;
     bracketList.appendChild(li);
   });
@@ -122,8 +151,8 @@ function showBracket() {
 
 function startTimer() {
   setInterval(() => {
-    const diff = Math.floor((Date.now() - startTime) / 1000);
-    timer.textContent = `⏱ ${diff}s`;
+    const s = Math.floor((Date.now() - startTime) / 1000);
+    timer.textContent = `⏱ ${s}s`;
   }, 1000);
 }
 
@@ -131,37 +160,42 @@ window.onload = loadStatus;
 </script>
 </head>
 
-<body>
+<body class="text-white">
 
+<!-- 🎥 BACKGROUND VIDEO -->
 <video class="bg" autoplay muted loop>
   <source src="logo-animato.mp4" type="video/mp4">
 </video>
 
-<!-- REGISTRATION -->
+<!-- 📝 REGISTRATION -->
 <div id="registration" class="min-h-screen flex items-center justify-center">
-  <div class="bg-black/50 p-6 rounded-xl w-80">
-    <h2 class="text-xl font-bold mb-3">Iscrizione</h2>
-    <input id="nickname" class="w-full mb-2 p-2 text-black" placeholder="Nickname">
-    <input id="playerTag" class="w-full mb-2 p-2 text-black" placeholder="Player Tag">
-    <input id="discordUser" class="w-full mb-2 p-2 text-black" placeholder="Discord">
-    <button onclick="registerPlayer()" class="w-full bg-yellow-500 p-2">Iscriviti</button>
+  <div class="glass p-6 w-80">
+    <h2 class="text-2xl font-bold text-center mb-4">🎮 Iscrizione</h2>
 
-    <button onclick="startTournament()" 
-      class="w-full mt-4 bg-green-600 p-2 font-bold">
+    <input id="nickname" class="w-full mb-2 p-2 rounded text-black" placeholder="Nickname">
+    <input id="playerTag" class="w-full mb-2 p-2 rounded text-black" placeholder="Player Tag">
+    <input id="discordUser" class="w-full mb-4 p-2 rounded text-black" placeholder="Discord">
+
+    <button onclick="registerPlayer()" class="w-full bg-yellow-500 text-black p-2 rounded font-bold">
+      Iscriviti
+    </button>
+
+    <button onclick="startTournament()" class="w-full mt-4 bg-green-600 p-2 rounded font-bold">
       START TOURNAMENT
     </button>
   </div>
 </div>
 
-<!-- BRACKET -->
-<div id="bracketPage" class="hidden p-6">
-  <div class="flex justify-between">
+<!-- 🏆 BRACKET -->
+<div id="bracketPage" class="hidden min-h-screen p-6">
+  <div class="flex justify-between items-center mb-6">
     <h2 id="timer" class="text-xl font-bold"></h2>
-    <button onclick="endTournament()" class="bg-red-600 p-2">
-      END
+    <button onclick="endTournament()" class="bg-red-600 px-4 py-2 rounded">
+      END TOURNAMENT
     </button>
   </div>
-  <ul id="bracketList" class="mt-6 space-y-2"></ul>
+
+  <ul id="bracketList" class="space-y-2 max-w-md mx-auto"></ul>
 </div>
 
 </body>
