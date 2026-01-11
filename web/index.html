@@ -8,6 +8,22 @@
   <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
 
+  <!-- HEARTBEAT ANIMATION -->
+  <style>
+    @keyframes heartbeat {
+      0%   { transform: scale(1); }
+      20%  { transform: scale(1.04); }
+      40%  { transform: scale(0.98); }
+      60%  { transform: scale(1.05); }
+      80%  { transform: scale(0.99); }
+      100% { transform: scale(1); }
+    }
+
+    .heartbeat {
+      animation: heartbeat 0.5s ease-in-out 2;
+    }
+  </style>
+
   <!-- Firebase -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
@@ -81,10 +97,21 @@
     window.onload = () => {
       loadCount();
 
-      // ⏱️ DELAY 1 SECONDO PER MOSTRARE L’INTERFACCIA
+      // ⏱️ Delay 1 secondo
       setTimeout(() => {
-        document.getElementById("signupWrapper").classList.remove("opacity-0");
-        document.getElementById("signupWrapper").classList.remove("scale-95");
+        const wrapper = document.getElementById("signupWrapper");
+        const card = document.getElementById("signupCard");
+
+        wrapper.classList.remove("opacity-0", "scale-95");
+
+        // 💓 Heartbeat per 0.5s
+        card.classList.add("heartbeat");
+
+        // rimuove l'animazione dopo 0.5s
+        setTimeout(() => {
+          card.classList.remove("heartbeat");
+        }, 500);
+
       }, 1000);
     };
   </script>
@@ -109,11 +136,11 @@
     <!-- WRAPPER CON DELAY -->
     <div
       id="signupWrapper"
-      class="transition-all duration-700 ease-out
-             opacity-0 scale-95"
+      class="transition-all duration-700 ease-out opacity-0 scale-95"
     >
       <!-- CARD ISCRIZIONE -->
       <div
+        id="signupCard"
         class="w-full max-w-md p-8 rounded-2xl
                bg-white/10 backdrop-blur-md
                border border-white/20
@@ -142,7 +169,7 @@
 
         <button onclick="registerPlayer()"
           class="w-full bg-red-600 hover:bg-red-700 transition p-3 rounded font-bold tracking-wide">
-          READY FOR CLASH
+          ISCRIVITI
         </button>
       </div>
     </div>
@@ -151,4 +178,3 @@
 
 </body>
 </html>
-
