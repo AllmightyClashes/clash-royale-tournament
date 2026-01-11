@@ -82,7 +82,7 @@
   </script>
 </head>
 
-<body class="m-0 p-0 overflow-hidden">
+<body class="m-0 p-0 overflow-hidden text-white">
 
   <!-- VIDEO BACKGROUND -->
   <video
@@ -96,31 +96,38 @@
   </video>
 
   <!-- OVERLAY -->
-  <div class="min-h-screen bg-black/70 flex items-center justify-center p-6">
+  <div class="min-h-screen flex items-center justify-center p-6 bg-black/50">
 
-    <div class="bg-gray-900/90 p-8 rounded-2xl w-full max-w-md text-white">
-      <h1 class="text-3xl font-extrabold text-center mb-2">
+    <!-- CARD ISCRIZIONE -->
+    <div
+      class="w-full max-w-md p-8 rounded-2xl
+             bg-white/10 backdrop-blur-md
+             border border-white/20
+             shadow-2xl"
+    >
+      <h1 class="text-3xl font-extrabold text-center mb-2 tracking-wide">
         ALLMIGHTY CLASHES
       </h1>
 
-      <p class="text-center mb-6 text-sm text-gray-300">
-        Torneo Clash Royale – <span id="count">0</span> / 1024 iscritti
+      <p class="text-center mb-6 text-sm text-gray-200">
+        Torneo Clash Royale<br>
+        <span id="count">0</span> / 1024 iscritti
       </p>
 
       <input id="nickname"
-        class="w-full mb-3 p-2 rounded bg-gray-800"
+        class="w-full mb-3 p-2 rounded bg-black/40 border border-white/20 focus:outline-none focus:ring-2 focus:ring-red-500"
         placeholder="Nickname">
 
       <input id="playerTag"
-        class="w-full mb-3 p-2 rounded bg-gray-800"
+        class="w-full mb-3 p-2 rounded bg-black/40 border border-white/20 focus:outline-none focus:ring-2 focus:ring-red-500"
         placeholder="Player Tag">
 
       <input id="discordUser"
-        class="w-full mb-4 p-2 rounded bg-gray-800"
+        class="w-full mb-4 p-2 rounded bg-black/40 border border-white/20 focus:outline-none focus:ring-2 focus:ring-red-500"
         placeholder="Discord username">
 
       <button onclick="registerPlayer()"
-        class="w-full bg-red-600 hover:bg-red-700 transition p-3 rounded font-bold">
+        class="w-full bg-red-600 hover:bg-red-700 transition p-3 rounded font-bold tracking-wide">
         ISCRIVITI
       </button>
     </div>
