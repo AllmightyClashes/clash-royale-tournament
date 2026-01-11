@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Tournament Bracket</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-900 text-white min-h-screen p-6">
+
+  <!-- END BUTTON -->
+  <div style="position:fixed;top:16px;right:16px;z-index:9999">
+    <button onclick="endTournament()"
+      class="bg-red-600 hover:bg-red-700 px-5 py-2 rounded font-extrabold">
+      END TOURNAMENT
+    </button>
+  </div>
+
+  <h1 class="text-3xl font-extrabold text-center mb-8">
+    🏆 TOURNAMENT BRACKET
+  </h1>
+
+  <div id="bracket" class="max-w-4xl mx-auto space-y-4">
+    <p class="text-center text-gray-400">Caricamento bracket...</p>
+  </div>
+
+  <!-- FIREBASE -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      getDocs,
+      query,
+      orderBy,
+      doc,
+      setDoc
+    } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBUjtbuQfc2drjqivgoLFEyQ9k4Un4f6fQ",
+      authDomain: "allmighty-tournaments.firebaseapp.com",
+      projectId: "allmighty-tournaments",
+      storageBucket: "allmighty-tournaments.firebasestorage.app",
+      messagingSenderId: "876830337732",
+      appId: "1:876830337732:web:12509e3197a65e6350b791"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const tournamentRef = doc(db, "config", "tournament");
+
+    async function loadBracket() {
+      const q = query(
+        collection(db, "matches"),
+        orderBy("round"),
+        orderBy("match")
+      );
+
+      const snap = await getDocs(q);
+      const bracket = document.getElementById("bracket");
+      bracket.innerHTML = "";
+
+      snap.forEach(doc => {
+        const m = doc.data();
+        bracket.innerHTML += `
+          <div class="bg-white/10 rounded-xl p-4">
+            <p class="font-bold">Round ${m.round}</p>
+            <p>${m.p1} vs ${m.p2 ?? "BYE"}</p>
+          </div>
+        `;
+      });
+    }
+
+    loadBracket();
+
+    window.endTournament = async () => {
+      const pass = prompt("Inserisci password");
+      if (pass !== "robifede") {
+        alert("Password errata");
+        return;
+      }
+
+      await setDoc(tournamentRef, {
+        started: false,
+        endedAt: Date.now()
+      });
+
+      alert("🛑 Torneo concluso");
+      window.location.href = "index.html";
+    };
+  </script>
+
+</body>
+</html>
