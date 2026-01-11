@@ -31,15 +31,11 @@
   <!-- OVERLAY -->
   <div class="absolute inset-0 bg-black/60"></div>
 
-  <!-- TOP RIGHT CONTROLS -->
-  <div class="absolute top-4 right-4 z-20 flex gap-2">
+  <!-- START BUTTON -->
+  <div style="position:fixed;top:16px;right:16px;z-index:9999">
     <button onclick="startTournament()"
-      class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded font-bold">
-      START
-    </button>
-    <button onclick="endTournament()"
-      class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded font-bold">
-      END
+      class="bg-red-600 hover:bg-red-700 px-5 py-2 rounded font-extrabold">
+      START TOURNAMENT
     </button>
   </div>
 
@@ -47,9 +43,14 @@
   <div id="ui" class="relative z-10 min-h-screen flex items-center justify-center">
     <div class="bg-white/10 backdrop-blur-xl rounded-2xl p-8 w-full max-w-md shadow-2xl">
 
-      <h1 class="text-2xl font-bold text-center mb-6">
+      <h1 class="text-2xl font-bold text-center mb-1">
         🏆 Clash Royale Tournament
       </h1>
+
+      <!-- PLAYER COUNT -->
+      <p class="text-center text-sm text-gray-300 mb-6">
+        👥 Giocatori iscritti: <span id="playerCount" class="font-bold">0</span> / 1024
+      </p>
 
       <input id="nickname" placeholder="Nickname"
         class="w-full mb-3 p-3 rounded bg-black/40 border border-white/20" />
@@ -61,12 +62,9 @@
         class="w-full mb-4 p-3 rounded bg-black/40 border border-white/20" />
 
       <button onclick="registerPlayer()"
-        class="w-full bg-red-600 hover:bg-red-700 text-white font-extrabold p-3 rounded tracking-wide">
+        class="w-full bg-red-600 hover:bg-red-700 text-white font-extrabold p-3 rounded">
         READY TO CLASH
       </button>
-
-      <p id="status"
-         class="text-center text-sm text-gray-300 mt-4"></p>
 
     </div>
   </div>
@@ -79,8 +77,8 @@
       collection,
       addDoc,
       doc,
-      getDoc,
-      setDoc
+      setDoc,
+      onSnapshot
     } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -96,35 +94,20 @@
     const db = getFirestore(app);
 
     const tournamentRef = doc(db, "config", "tournament");
+    const playersRef = collection(db, "players");
 
-    let tournamentStarted = false;
-
-    // UI delay
+    // Delay UI
     setTimeout(() => {
       document.getElementById("ui").classList.add("show");
     }, 1000);
 
-    // Load tournament status
-    async function loadStatus() {
-      const snap = await getDoc(tournamentRef);
-      if (snap.exists()) {
-        tournamentStarted = snap.data().started;
-      }
-      document.getElementById("status").textContent =
-        tournamentStarted
-          ? "⛔ Torneo in corso – iscrizioni chiuse"
-          : "🟢 Iscrizioni aperte";
-    }
+    // 🔄 REALTIME PLAYER COUNT
+    onSnapshot(playersRef, snap => {
+      document.getElementById("playerCount").textContent = snap.size;
+    });
 
-    loadStatus();
-
-    // Register player
+    // REGISTER PLAYER
     window.registerPlayer = async () => {
-      if (tournamentStarted) {
-        alert("Iscrizioni chiuse");
-        return;
-      }
-
       const nick = nickname.value.trim();
       const tag = playerTag.value.trim();
       const discord = discordUser.value.trim();
@@ -134,7 +117,7 @@
         return;
       }
 
-      await addDoc(collection(db, "players"), {
+      await addDoc(playersRef, {
         nick,
         tag,
         discord,
@@ -161,27 +144,7 @@
         startedAt: Date.now()
       });
 
-      tournamentStarted = true;
-      loadStatus();
-      alert("🏁 Torneo avviato");
-    };
-
-    // END TOURNAMENT
-    window.endTournament = async () => {
-      const pass = prompt("Inserisci password");
-      if (pass !== "robifede") {
-        alert("Password errata");
-        return;
-      }
-
-      await setDoc(tournamentRef, {
-        started: false,
-        endedAt: Date.now()
-      });
-
-      tournamentStarted = false;
-      loadStatus();
-      alert("🛑 Torneo concluso");
+      window.location.href = "bracket.html";
     };
   </script>
 
