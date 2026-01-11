@@ -1,214 +1,160 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-<meta charset="UTF-8">
-<title>Clash Royale Tournament – 1024</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <title>Clash Royale Tournament – 1024</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
 
-<style>
-  html, body {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    overflow: hidden;
-    font-family: system-ui, sans-serif;
-  }
-
-  /* VIDEO BACKGROUND */
-  #bgVideo {
-    position: fixed;
-    top: 0;
-    left: 0;
-    min-width: 100%;
-    min-height: 100%;
-    object-fit: cover;
-    z-index: -10;
-  }
-
-  /* DARK OVERLAY */
-  .overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.45);
-    z-index: -5;
-  }
-
-  /* REGISTRATION CARD (COME PRIMA) */
-  .register-card {
-    background: rgba(20,20,20,0.75);
-    border-radius: 16px;
-    padding: 24px;
-    width: 320px;
-    box-shadow: 0 0 40px rgba(0,0,0,0.8);
-    backdrop-filter: blur(6px);
-  }
-</style>
-
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import {
-  getFirestore, collection, addDoc, getDocs,
-  doc, setDoc, getDoc
-} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyBUjtbuQfc2drjqivgoLFEyQ9k4Un4f6fQ",
-  authDomain: "allmighty-tournaments.firebaseapp.com",
-  projectId: "allmighty-tournaments",
-  storageBucket: "allmighty-tournaments.appspot.com",
-  messagingSenderId: "876830337732",
-  appId: "1:876830337732:web:12509e3197a65e6350b791"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-let players = [];
-let bracket = [];
-let startTime = null;
-
-/* LOAD STATUS */
-async function loadStatus() {
-  const snap = await getDoc(doc(db, "tournament", "status"));
-  if (snap.exists() && snap.data().started) {
-    startTime = snap.data().startTime;
-    showBracket();
-    startTimer();
-  }
-}
-
-/* REGISTRATION */
-window.registerPlayer = async () => {
-  const nick = nickname.value.trim();
-  const tag = playerTag.value.trim();
-  const discord = discordUser.value.trim();
-
-  if (!nick || !tag || !discord) {
-    alert("Compila tutti i campi");
-    return;
-  }
-
-  await addDoc(collection(db, "players"), {
-    nick, tag, discord, createdAt: Date.now()
-  });
-
-  nickname.value = "";
-  playerTag.value = "";
-  discordUser.value = "";
-
-  alert("Iscrizione completata");
-};
-
-/* START TOURNAMENT */
-window.startTournament = async () => {
-  const pwd = prompt("Password");
-  if (pwd !== "robifede") return alert("Password errata");
-
-  const statusRef = doc(db, "tournament", "status");
-  const statusSnap = await getDoc(statusRef);
-
-  if (statusSnap.exists() && statusSnap.data().started) {
-    return alert("Torneo già iniziato");
-  }
-
-  const snap = await getDocs(collection(db, "players"));
-  players = [];
-  snap.forEach(d => players.push(d.data()));
-
-  if (players.length < 2) return alert("Giocatori insufficienti");
-
-  players.sort(() => Math.random() - 0.5);
-  bracket = [];
-
-  for (let i = 0; i < players.length; i += 2) {
-    bracket.push({
-      p1: players[i]?.nick || "BYE",
-      p2: players[i + 1]?.nick || "BYE"
-    });
-  }
-
-  startTime = Date.now();
-  await setDoc(statusRef, { started: true, startTime });
-
-  showBracket();
-  startTimer();
-};
-
-/* END TOURNAMENT */
-window.endTournament = async () => {
-  const pwd = prompt("Password");
-  if (pwd !== "robifede") return alert("Password errata");
-
-  await setDoc(doc(db, "tournament", "status"), { started: false });
-  location.reload();
-};
-
-/* UI */
-function showBracket() {
-  registration.classList.add("hidden");
-  bracketPage.classList.remove("hidden");
-
-  bracketList.innerHTML = "";
-  bracket.forEach(m => {
-    const li = document.createElement("li");
-    li.className = "bg-black/70 p-3 rounded";
-    li.textContent = `${m.p1} vs ${m.p2}`;
-    bracketList.appendChild(li);
-  });
-}
-
-function startTimer() {
-  setInterval(() => {
-    const s = Math.floor((Date.now() - startTime) / 1000);
-    timer.textContent = `⏱ ${s}s`;
-  }, 1000);
-}
-
-window.onload = loadStatus;
-</script>
+  <style>
+    #ui {
+      opacity: 0;
+      transform: scale(0.97);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    #ui.show {
+      opacity: 1;
+      transform: scale(1);
+    }
+  </style>
 </head>
 
-<body class="text-white">
+<body class="relative min-h-screen text-white overflow-hidden">
 
-<!-- VIDEO BACKGROUND -->
-<video id="bgVideo" autoplay muted loop playsinline>
-  <source src="./logo-animato.mp4" type="video/mp4">
-</video>
+  <!-- VIDEO BACKGROUND -->
+  <video autoplay muted loop playsinline
+    class="absolute inset-0 w-full h-full object-cover">
+    <source src="logo animato.mp4" type="video/mp4" />
+  </video>
 
-<div class="overlay"></div>
+  <!-- OVERLAY -->
+  <div class="absolute inset-0 bg-black/60"></div>
 
-<!-- REGISTRATION -->
-<div id="registration" class="min-h-screen flex items-center justify-center">
-  <div class="register-card">
-    <h2 class="text-2xl font-bold text-center mb-4">🎮 Iscrizione</h2>
+  <!-- UI -->
+  <div id="ui" class="relative z-10 min-h-screen flex items-center justify-center">
+    <div
+      class="bg-white/10 backdrop-blur-xl rounded-2xl p-8 w-full max-w-md shadow-2xl">
 
-    <input id="nickname" class="w-full mb-2 p-2 rounded text-black" placeholder="Nickname">
-    <input id="playerTag" class="w-full mb-2 p-2 rounded text-black" placeholder="Player Tag">
-    <input id="discordUser" class="w-full mb-4 p-2 rounded text-black" placeholder="Discord">
+      <h1 class="text-2xl font-bold text-center mb-6">
+        🏆 Clash Royale Tournament
+      </h1>
 
-    <button onclick="registerPlayer()" class="w-full bg-yellow-500 text-black p-2 rounded font-bold">
-      Iscriviti
-    </button>
+      <input id="nickname" placeholder="Nickname"
+        class="w-full mb-3 p-3 rounded bg-black/40 border border-white/20" />
+      <input id="playerTag" placeholder="Player Tag"
+        class="w-full mb-3 p-3 rounded bg-black/40 border border-white/20" />
+      <input id="discordUser" placeholder="Discord username"
+        class="w-full mb-4 p-3 rounded bg-black/40 border border-white/20" />
 
-    <button onclick="startTournament()" class="w-full mt-4 bg-green-600 p-2 rounded font-bold">
-      START TOURNAMENT
-    </button>
+      <button onclick="registerPlayer()"
+        class="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-bold p-3 rounded mb-3">
+        ISCRIVITI
+      </button>
+
+      <button onclick="generateBracket()"
+        class="w-full bg-purple-600 hover:bg-purple-700 font-bold p-3 rounded">
+        GENERA BRACKET
+      </button>
+
+    </div>
   </div>
-</div>
 
-<!-- BRACKET -->
-<div id="bracketPage" class="hidden min-h-screen p-6">
-  <div class="flex justify-between items-center mb-6">
-    <h2 id="timer" class="text-xl font-bold"></h2>
-    <button onclick="endTournament()" class="bg-red-600 px-4 py-2 rounded">
-      END TOURNAMENT
-    </button>
-  </div>
+  <!-- FIREBASE -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      getDocs
+    } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-  <ul id="bracketList" class="space-y-2 max-w-md mx-auto"></ul>
-</div>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBUjtbuQfc2drjqivgoLFEyQ9k4Un4f6fQ",
+      authDomain: "allmighty-tournaments.firebaseapp.com",
+      projectId: "allmighty-tournaments",
+      storageBucket: "allmighty-tournaments.firebasestorage.app",
+      messagingSenderId: "876830337732",
+      appId: "1:876830337732:web:12509e3197a65e6350b791"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    setTimeout(() => {
+      document.getElementById("ui").classList.add("show");
+    }, 1000);
+
+    window.registerPlayer = async () => {
+      const nick = nickname.value.trim();
+      const tag = playerTag.value.trim();
+      const discord = discordUser.value.trim();
+
+      if (!nick || !tag || !discord) {
+        alert("Compila tutti i campi");
+        return;
+      }
+
+      await addDoc(collection(db, "players"), {
+        nick,
+        tag,
+        discord,
+        createdAt: Date.now()
+      });
+
+      nickname.value = "";
+      playerTag.value = "";
+      discordUser.value = "";
+
+      alert("✅ Iscrizione completata");
+    };
+
+    window.generateBracket = async () => {
+      const snap = await getDocs(collection(db, "players"));
+      let players = [];
+
+      snap.forEach(d => players.push(d.data().discord));
+
+      if (players.length < 2) {
+        alert("Servono almeno 2 giocatori");
+        return;
+      }
+
+      players.sort(() => Math.random() - 0.5);
+
+      let match = 1;
+
+      if (players.length % 2 !== 0) {
+        const bye = players.pop();
+        await addDoc(collection(db, "matches"), {
+          round: 1,
+          match,
+          p1: bye,
+          p2: null,
+          winner: bye,
+          bye: true,
+          createdAt: Date.now()
+        });
+        match++;
+      }
+
+      for (let i = 0; i < players.length; i += 2) {
+        await addDoc(collection(db, "matches"), {
+          round: 1,
+          match,
+          p1: players[i],
+          p2: players[i + 1],
+          winner: null,
+          bye: false,
+          createdAt: Date.now()
+        });
+        match++;
+      }
+
+      alert("🏆 Bracket creato");
+    };
+  </script>
 
 </body>
 </html>
