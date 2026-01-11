@@ -106,25 +106,6 @@
       });
     };
 
-    /* ================= LOGIN ADMIN ================= */
-    window.adminLogin = async () => {
-      try {
-        await signInWithEmailAndPassword(
-          auth,
-          adminEmail.value,
-          adminPassword.value
-        );
-      } catch (e) {
-        alert("Login admin fallito");
-      }
-    };
-
-    onAuthStateChanged(auth, user => {
-      if (user) {
-        adminPanel.classList.remove("hidden");
-      }
-    });
-
     /* ================= ASSEGNA GIRONI ================= */
     window.assignGroups = async () => {
       if (players.length !== 1024) {
@@ -222,3 +203,4 @@
 
 </body>
 </html>
+
