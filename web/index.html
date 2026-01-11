@@ -1,189 +1,168 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8" />
-  <title>Clash Royale Tournament</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8">
+<title>Clash Royale Tournament – 1024</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.tailwindcss.com"></script>
 
-  <style>
-    #ui {
-      opacity: 0;
-      transform: scale(0.97);
-      transition: opacity 0.6s ease, transform 0.6s ease;
-    }
-    #ui.show {
-      opacity: 1;
-      transform: scale(1);
-    }
-  </style>
+<style>
+  body {
+    margin: 0;
+    overflow-x: hidden;
+  }
+  video.bg {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: -1;
+  }
+</style>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, doc, setDoc, getDoc } 
+from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBUjtbuQfc2drjqivgoLFEyQ9k4Un4f6fQ",
+  authDomain: "allmighty-tournaments.firebaseapp.com",
+  projectId: "allmighty-tournaments",
+  storageBucket: "allmighty-tournaments.appspot.com",
+  messagingSenderId: "876830337732",
+  appId: "1:876830337732:web:12509e3197a65e6350b791"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+let players = [];
+let bracket = [];
+let startTime = null;
+
+/* ---------- LOAD STATUS ---------- */
+async function loadStatus() {
+  const snap = await getDoc(doc(db, "tournament", "status"));
+  if (snap.exists() && snap.data().started) {
+    startTime = snap.data().startTime;
+    showBracket();
+    startTimer();
+  }
+}
+
+/* ---------- REGISTER PLAYER ---------- */
+window.registerPlayer = async () => {
+  const nick = nickname.value.trim();
+  const tag = playerTag.value.trim();
+  const discord = discordUser.value.trim();
+  if (!nick || !tag || !discord) return;
+
+  await addDoc(collection(db, "players"), { nick, tag, discord });
+  alert("Iscritto!");
+};
+
+/* ---------- START TOURNAMENT ---------- */
+window.startTournament = async () => {
+  const pwd = prompt("Password");
+  if (pwd !== "robifede") return alert("Password errata");
+
+  const statusRef = doc(db, "tournament", "status");
+  const snap = await getDoc(statusRef);
+  if (snap.exists() && snap.data().started) {
+    return alert("Torneo già iniziato");
+  }
+
+  const pSnap = await getDocs(collection(db, "players"));
+  players = [];
+  pSnap.forEach(d => players.push(d.data()));
+
+  if (players.length < 2) return alert("Giocatori insufficienti");
+
+  players.sort(() => Math.random() - 0.5);
+
+  bracket = [];
+  for (let i = 0; i < players.length; i += 2) {
+    bracket.push({
+      p1: players[i]?.nick || "BYE",
+      p2: players[i+1]?.nick || "BYE"
+    });
+  }
+
+  startTime = Date.now();
+  await setDoc(statusRef, { started: true, startTime });
+
+  showBracket();
+  startTimer();
+};
+
+/* ---------- END TOURNAMENT ---------- */
+window.endTournament = async () => {
+  const pwd = prompt("Password");
+  if (pwd !== "robifede") return alert("Password errata");
+
+  await setDoc(doc(db, "tournament", "status"), { started: false });
+  location.reload();
+};
+
+/* ---------- UI ---------- */
+function showBracket() {
+  registration.classList.add("hidden");
+  bracketPage.classList.remove("hidden");
+
+  bracketList.innerHTML = "";
+  bracket.forEach(m => {
+    const li = document.createElement("li");
+    li.textContent = `${m.p1} vs ${m.p2}`;
+    bracketList.appendChild(li);
+  });
+}
+
+function startTimer() {
+  setInterval(() => {
+    const diff = Math.floor((Date.now() - startTime) / 1000);
+    timer.textContent = `⏱ ${diff}s`;
+  }, 1000);
+}
+
+window.onload = loadStatus;
+</script>
 </head>
 
-<body class="relative min-h-screen text-white overflow-hidden">
+<body>
 
-  <!-- VIDEO BACKGROUND -->
-  <video autoplay muted loop playsinline
-    class="absolute inset-0 w-full h-full object-cover">
-    <source src="logo-animato.mp4" type="video/mp4" />
-  </video>
+<video class="bg" autoplay muted loop>
+  <source src="logo-animato.mp4" type="video/mp4">
+</video>
 
-  <div class="absolute inset-0 bg-black/60"></div>
+<!-- REGISTRATION -->
+<div id="registration" class="min-h-screen flex items-center justify-center">
+  <div class="bg-black/50 p-6 rounded-xl w-80">
+    <h2 class="text-xl font-bold mb-3">Iscrizione</h2>
+    <input id="nickname" class="w-full mb-2 p-2 text-black" placeholder="Nickname">
+    <input id="playerTag" class="w-full mb-2 p-2 text-black" placeholder="Player Tag">
+    <input id="discordUser" class="w-full mb-2 p-2 text-black" placeholder="Discord">
+    <button onclick="registerPlayer()" class="w-full bg-yellow-500 p-2">Iscriviti</button>
 
-  <!-- TIMER BAR -->
-  <div id="timerBar"
-    class="hidden fixed top-0 left-0 w-full bg-black/80 text-center p-3 font-bold z-20">
-    ⏱️ Tempo torneo: <span id="timer">00:00</span>
-
-    <button onclick="endTournament()"
-      class="absolute top-2 right-4 bg-red-600 px-4 py-1 rounded text-sm">
-      END TOURNAMENT
+    <button onclick="startTournament()" 
+      class="w-full mt-4 bg-green-600 p-2 font-bold">
+      START TOURNAMENT
     </button>
   </div>
+</div>
 
-  <!-- UI -->
-  <div id="ui" class="relative z-10 min-h-screen flex items-center justify-center">
-    <div class="bg-white/10 backdrop-blur-xl rounded-2xl p-8 w-full max-w-xl shadow-2xl">
-
-      <!-- REGISTRATION -->
-      <div id="registration">
-        <h1 class="text-2xl font-bold text-center mb-6">🏆 Clash Royale Tournament</h1>
-
-        <input id="nickname" placeholder="Nickname"
-          class="w-full mb-3 p-3 rounded bg-black/40 border border-white/20" />
-        <input id="playerTag" placeholder="Player Tag"
-          class="w-full mb-3 p-3 rounded bg-black/40 border border-white/20" />
-        <input id="discordUser" placeholder="Discord username"
-          class="w-full mb-4 p-3 rounded bg-black/40 border border-white/20" />
-
-        <button onclick="registerPlayer()"
-          class="w-full bg-yellow-400 text-black font-bold p-3 rounded mb-6">
-          ISCRIVITI
-        </button>
-
-        <!-- START BUTTON IN FONDO -->
-        <button onclick="startTournament()"
-          class="w-full bg-green-600 hover:bg-green-700 font-bold p-3 rounded">
-          🚀 START TOURNAMENT
-        </button>
-      </div>
-
-      <!-- BRACKET -->
-      <div id="bracket" class="hidden">
-        <h2 class="text-xl font-bold text-center mb-4">🏆 BRACKET – ROUND 1</h2>
-        <ul id="bracketList" class="space-y-2 text-sm"></ul>
-      </div>
-
-    </div>
+<!-- BRACKET -->
+<div id="bracketPage" class="hidden p-6">
+  <div class="flex justify-between">
+    <h2 id="timer" class="text-xl font-bold"></h2>
+    <button onclick="endTournament()" class="bg-red-600 p-2">
+      END
+    </button>
   </div>
-
-  <!-- FIREBASE + LOGICA -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs } from
-      "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-
-    const PASSWORD = "robifede";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyBUjtbuQfc2drjqivgoLFEyQ9k4Un4f6fQ",
-      authDomain: "allmighty-tournaments.firebaseapp.com",
-      projectId: "allmighty-tournaments",
-      storageBucket: "allmighty-tournaments.firebasestorage.app",
-      messagingSenderId: "876830337732",
-      appId: "1:876830337732:web:12509e3197a65e6350b791"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    setTimeout(() => {
-      ui.classList.add("show");
-    }, 1000);
-
-    let tournamentStarted = false;
-    let timerInterval;
-    let seconds = 0;
-
-    window.registerPlayer = async () => {
-      if (tournamentStarted) {
-        alert("Iscrizioni chiuse");
-        return;
-      }
-
-      if (!nickname.value || !playerTag.value || !discordUser.value) return;
-
-      await addDoc(collection(db, "players"), {
-        nick: nickname.value,
-        tag: playerTag.value,
-        discord: discordUser.value,
-        createdAt: Date.now()
-      });
-
-      nickname.value = "";
-      playerTag.value = "";
-      discordUser.value = "";
-
-      alert("✅ Registrazione completata");
-    };
-
-    window.startTournament = async () => {
-      const pwd = prompt("Inserisci password");
-      if (pwd !== PASSWORD) {
-        alert("Password errata");
-        return;
-      }
-
-      tournamentStarted = true;
-      registration.classList.add("hidden");
-      bracket.classList.remove("hidden");
-      timerBar.classList.remove("hidden");
-
-      startTimer();
-      generateBracket();
-    };
-
-    window.endTournament = () => {
-      const pwd = prompt("Inserisci password per terminare");
-      if (pwd !== PASSWORD) {
-        alert("Password errata");
-        return;
-      }
-
-      clearInterval(timerInterval);
-      alert("⛔ Torneo terminato");
-    };
-
-    function startTimer() {
-      timerInterval = setInterval(() => {
-        seconds++;
-        const m = String(Math.floor(seconds / 60)).padStart(2, "0");
-        const s = String(seconds % 60).padStart(2, "0");
-        timer.textContent = `${m}:${s}`;
-      }, 1000);
-    }
-
-    async function generateBracket() {
-      const snap = await getDocs(collection(db, "players"));
-      let players = [];
-
-      snap.forEach(d => players.push(d.data().discord));
-      players.sort(() => Math.random() - 0.5);
-
-      bracketList.innerHTML = "";
-      let match = 1;
-
-      if (players.length % 2 !== 0) {
-        bracketList.innerHTML += `<li>Match ${match}: ${players.pop()} → BYE</li>`;
-        match++;
-      }
-
-      for (let i = 0; i < players.length; i += 2) {
-        bracketList.innerHTML += `<li>Match ${match}: ${players[i]} vs ${players[i + 1]}</li>`;
-        match++;
-      }
-    }
-  </script>
+  <ul id="bracketList" class="mt-6 space-y-2"></ul>
+</div>
 
 </body>
 </html>
