@@ -5,6 +5,7 @@
   <title>Clash Royale Tournament – 1024</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
 
   <style>
@@ -23,9 +24,14 @@
 <body class="relative min-h-screen text-white overflow-hidden">
 
   <!-- VIDEO BACKGROUND -->
-  <video autoplay muted loop playsinline
-    class="absolute inset-0 w-full h-full object-cover">
-    <source src="logo-animato.mp4" type="video/mp4" />
+  <video
+    autoplay
+    muted
+    loop
+    playsinline
+    class="absolute inset-0 w-full h-full object-cover"
+  >
+    <source src="./logo-animato.mp4" type="video/mp4" />
   </video>
 
   <!-- OVERLAY -->
@@ -33,27 +39,41 @@
 
   <!-- UI -->
   <div id="ui" class="relative z-10 min-h-screen flex items-center justify-center">
-    <div
-      class="bg-white/10 backdrop-blur-xl rounded-2xl p-8 w-full max-w-md shadow-2xl">
+    <div class="bg-white/10 backdrop-blur-xl rounded-2xl p-8 w-full max-w-md shadow-2xl">
 
       <h1 class="text-2xl font-bold text-center mb-6">
         🏆 Clash Royale Tournament
       </h1>
 
-      <input id="nickname" placeholder="Nickname"
-        class="w-full mb-3 p-3 rounded bg-black/40 border border-white/20" />
-      <input id="playerTag" placeholder="Player Tag"
-        class="w-full mb-3 p-3 rounded bg-black/40 border border-white/20" />
-      <input id="discordUser" placeholder="Discord username"
-        class="w-full mb-4 p-3 rounded bg-black/40 border border-white/20" />
+      <input
+        id="nickname"
+        placeholder="Nickname"
+        class="w-full mb-3 p-3 rounded bg-black/40 border border-white/20"
+      />
 
-      <button onclick="registerPlayer()"
-        class="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-bold p-3 rounded mb-3">
+      <input
+        id="playerTag"
+        placeholder="Player Tag"
+        class="w-full mb-3 p-3 rounded bg-black/40 border border-white/20"
+      />
+
+      <input
+        id="discordUser"
+        placeholder="Discord username"
+        class="w-full mb-4 p-3 rounded bg-black/40 border border-white/20"
+      />
+
+      <button
+        onclick="registerPlayer()"
+        class="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-bold p-3 rounded mb-3"
+      >
         ISCRIVITI
       </button>
 
-      <button onclick="generateBracket()"
-        class="w-full bg-purple-600 hover:bg-purple-700 font-bold p-3 rounded">
+      <button
+        onclick="generateBracket()"
+        class="w-full bg-purple-600 hover:bg-purple-700 font-bold p-3 rounded"
+      >
         GENERA BRACKET
       </button>
 
@@ -70,6 +90,7 @@
       getDocs
     } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
+    /* ===== FIREBASE CONFIG ===== */
     const firebaseConfig = {
       apiKey: "AIzaSyBUjtbuQfc2drjqivgoLFEyQ9k4Un4f6fQ",
       authDomain: "allmighty-tournaments.firebaseapp.com",
@@ -82,10 +103,12 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
+    /* ===== UI DELAY ===== */
     setTimeout(() => {
       document.getElementById("ui").classList.add("show");
     }, 1000);
 
+    /* ===== REGISTRA GIOCATORE ===== */
     window.registerPlayer = async () => {
       const nick = nickname.value.trim();
       const tag = playerTag.value.trim();
@@ -110,6 +133,7 @@
       alert("✅ Iscrizione completata");
     };
 
+    /* ===== GENERA BRACKET (DISPARI OK) ===== */
     window.generateBracket = async () => {
       const snap = await getDocs(collection(db, "players"));
       let players = [];
@@ -125,6 +149,7 @@
 
       let match = 1;
 
+      // BYE se dispari
       if (players.length % 2 !== 0) {
         const bye = players.pop();
         await addDoc(collection(db, "matches"), {
@@ -139,6 +164,7 @@
         match++;
       }
 
+      // Match normali
       for (let i = 0; i < players.length; i += 2) {
         await addDoc(collection(db, "matches"), {
           round: 1,
@@ -152,10 +178,9 @@
         match++;
       }
 
-      alert("🏆 Bracket creato");
+      alert("🏆 Bracket creato correttamente");
     };
   </script>
 
 </body>
 </html>
-
