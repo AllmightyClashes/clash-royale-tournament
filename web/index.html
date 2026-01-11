@@ -2,13 +2,13 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Clash Royale Tournament – Registrazione</title>
+  <title>Allmighty Clashes – Iscrizioni</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- FIREBASE -->
+  <!-- Firebase -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
     import {
@@ -20,7 +20,6 @@
       where
     } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-    /* ===== CONFIG FIREBASE ===== */
     const firebaseConfig = {
       apiKey: "AIzaSyBUjtbuQfc2drjqivgoLFEyQ9k4Un4f6fQ",
       authDomain: "allmighty-tournaments.firebaseapp.com",
@@ -33,12 +32,18 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    let players = [];
+    let playersCount = 0;
+    const MAX_PLAYERS = 1024;
 
-    /* ===== REGISTRA GIOCATORE ===== */
+    async function loadCount() {
+      const snap = await getDocs(collection(db, "players"));
+      playersCount = snap.size;
+      document.getElementById("count").textContent = playersCount;
+    }
+
     window.registerPlayer = async () => {
-      if (players.length >= 1024) {
-        alert("Iscrizioni chiuse");
+      if (playersCount >= MAX_PLAYERS) {
+        alert("❌ Iscrizioni chiuse");
         return;
       }
 
@@ -52,10 +57,9 @@
       }
 
       const q = query(collection(db, "players"), where("discord", "==", discord));
-      const snap = await getDocs(q);
-
-      if (!snap.empty) {
-        alert("Discord già registrato");
+      const exists = await getDocs(q);
+      if (!exists.empty) {
+        alert("Questo Discord è già registrato");
         return;
       }
 
@@ -70,58 +74,58 @@
       playerTag.value = "";
       discordUser.value = "";
 
-      loadPlayers();
-      alert("Registrazione completata");
+      await loadCount();
+      alert("✅ Iscrizione completata");
     };
 
-    /* ===== CARICA GIOCATORI ===== */
-    window.loadPlayers = async () => {
-      players = [];
-      const snap = await getDocs(collection(db, "players"));
-
-      snap.forEach(d => players.push(d.data()));
-
-      totalPlayers.textContent = players.length;
-      playerList.innerHTML = "";
-
-      players.forEach(p => {
-        const li = document.createElement("li");
-        li.textContent = `${p.nick} (${p.discord})`;
-        playerList.appendChild(li);
-      });
-    };
-
-    window.onload = loadPlayers;
+    window.onload = loadCount;
   </script>
 </head>
 
-<body class="bg-gray-900 text-white p-6">
+<body class="m-0 p-0 overflow-hidden">
 
-<div class="max-w-4xl mx-auto space-y-6">
+  <!-- VIDEO BACKGROUND -->
+  <video
+    autoplay
+    muted
+    loop
+    playsinline
+    class="fixed top-0 left-0 w-full h-full object-cover -z-10"
+  >
+    <source src="assets/logo-animato.mp4" type="video/mp4">
+  </video>
 
-  <!-- REGISTRAZIONE -->
-  <div class="bg-gray-800 p-6 rounded-xl">
-    <h2 class="text-xl font-bold mb-4">🎮 Iscrizione Torneo</h2>
+  <!-- OVERLAY -->
+  <div class="min-h-screen bg-black/70 flex items-center justify-center p-6">
 
-    <input id="nickname" class="w-full mb-2 p-2 bg-gray-700 rounded" placeholder="Nickname">
-    <input id="playerTag" class="w-full mb-2 p-2 bg-gray-700 rounded" placeholder="Player Tag">
-    <input id="discordUser" class="w-full mb-4 p-2 bg-gray-700 rounded" placeholder="Discord username">
+    <div class="bg-gray-900/90 p-8 rounded-2xl w-full max-w-md text-white">
+      <h1 class="text-3xl font-extrabold text-center mb-2">
+        ALLMIGHTY CLASHES
+      </h1>
 
-    <button onclick="registerPlayer()"
-      class="w-full bg-yellow-500 text-black p-2 rounded font-bold">
-      Iscriviti
-    </button>
+      <p class="text-center mb-6 text-sm text-gray-300">
+        Torneo Clash Royale – <span id="count">0</span> / 1024 iscritti
+      </p>
+
+      <input id="nickname"
+        class="w-full mb-3 p-2 rounded bg-gray-800"
+        placeholder="Nickname">
+
+      <input id="playerTag"
+        class="w-full mb-3 p-2 rounded bg-gray-800"
+        placeholder="Player Tag">
+
+      <input id="discordUser"
+        class="w-full mb-4 p-2 rounded bg-gray-800"
+        placeholder="Discord username">
+
+      <button onclick="registerPlayer()"
+        class="w-full bg-red-600 hover:bg-red-700 transition p-3 rounded font-bold">
+        ISCRIVITI
+      </button>
+    </div>
+
   </div>
-
-  <!-- LISTA GIOCATORI -->
-  <div class="bg-gray-800 p-6 rounded-xl">
-    <h2 class="text-xl font-bold mb-2">📋 Giocatori iscritti</h2>
-    <p class="mb-2">Totale: <span id="totalPlayers">0</span> / 1024</p>
-
-    <ul id="playerList" class="max-h-72 overflow-y-auto text-sm space-y-1"></ul>
-  </div>
-
-</div>
 
 </body>
 </html>
