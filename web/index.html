@@ -11,7 +11,7 @@
   <style>
     #ui {
       opacity: 0;
-      transform: scale(0.97);
+      transform: scale(0.96);
       transition: opacity 0.6s ease, transform 0.6s ease;
     }
     #ui.show {
@@ -29,9 +29,10 @@
     muted
     loop
     playsinline
+    preload="auto"
     class="absolute inset-0 w-full h-full object-cover"
   >
-    <source src="./logo-animato.mp4" type="video/mp4" />
+    <source src="logo-animato.mp4" type="video/mp4" />
   </video>
 
   <!-- OVERLAY -->
@@ -39,42 +40,25 @@
 
   <!-- UI -->
   <div id="ui" class="relative z-10 min-h-screen flex items-center justify-center">
-    <div class="bg-white/10 backdrop-blur-xl rounded-2xl p-8 w-full max-w-md shadow-2xl">
+    <div
+      class="bg-white/10 backdrop-blur-xl rounded-2xl p-8 w-full max-w-md shadow-2xl">
 
       <h1 class="text-2xl font-bold text-center mb-6">
         🏆 Clash Royale Tournament
       </h1>
 
-      <input
-        id="nickname"
-        placeholder="Nickname"
-        class="w-full mb-3 p-3 rounded bg-black/40 border border-white/20"
-      />
+      <input id="nickname" placeholder="Nickname"
+        class="w-full mb-3 p-3 rounded bg-black/40 border border-white/20" />
 
-      <input
-        id="playerTag"
-        placeholder="Player Tag"
-        class="w-full mb-3 p-3 rounded bg-black/40 border border-white/20"
-      />
+      <input id="playerTag" placeholder="Player Tag"
+        class="w-full mb-3 p-3 rounded bg-black/40 border border-white/20" />
 
-      <input
-        id="discordUser"
-        placeholder="Discord username"
-        class="w-full mb-4 p-3 rounded bg-black/40 border border-white/20"
-      />
+      <input id="discordUser" placeholder="Discord username"
+        class="w-full mb-4 p-3 rounded bg-black/40 border border-white/20" />
 
-      <button
-        onclick="registerPlayer()"
-        class="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-bold p-3 rounded mb-3"
-      >
+      <button onclick="registerPlayer()"
+        class="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-bold p-3 rounded">
         ISCRIVITI
-      </button>
-
-      <button
-        onclick="generateBracket()"
-        class="w-full bg-purple-600 hover:bg-purple-700 font-bold p-3 rounded"
-      >
-        GENERA BRACKET
       </button>
 
     </div>
@@ -86,11 +70,9 @@
     import {
       getFirestore,
       collection,
-      addDoc,
-      getDocs
+      addDoc
     } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-    /* ===== FIREBASE CONFIG ===== */
     const firebaseConfig = {
       apiKey: "AIzaSyBUjtbuQfc2drjqivgoLFEyQ9k4Un4f6fQ",
       authDomain: "allmighty-tournaments.firebaseapp.com",
@@ -103,12 +85,12 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    /* ===== UI DELAY ===== */
+    // Delay interfaccia
     setTimeout(() => {
       document.getElementById("ui").classList.add("show");
     }, 1000);
 
-    /* ===== REGISTRA GIOCATORE ===== */
+    // Registrazione giocatore
     window.registerPlayer = async () => {
       const nick = nickname.value.trim();
       const tag = playerTag.value.trim();
@@ -131,54 +113,6 @@
       discordUser.value = "";
 
       alert("✅ Iscrizione completata");
-    };
-
-    /* ===== GENERA BRACKET (DISPARI OK) ===== */
-    window.generateBracket = async () => {
-      const snap = await getDocs(collection(db, "players"));
-      let players = [];
-
-      snap.forEach(d => players.push(d.data().discord));
-
-      if (players.length < 2) {
-        alert("Servono almeno 2 giocatori");
-        return;
-      }
-
-      players.sort(() => Math.random() - 0.5);
-
-      let match = 1;
-
-      // BYE se dispari
-      if (players.length % 2 !== 0) {
-        const bye = players.pop();
-        await addDoc(collection(db, "matches"), {
-          round: 1,
-          match,
-          p1: bye,
-          p2: null,
-          winner: bye,
-          bye: true,
-          createdAt: Date.now()
-        });
-        match++;
-      }
-
-      // Match normali
-      for (let i = 0; i < players.length; i += 2) {
-        await addDoc(collection(db, "matches"), {
-          round: 1,
-          match,
-          p1: players[i],
-          p2: players[i + 1],
-          winner: null,
-          bye: false,
-          createdAt: Date.now()
-        });
-        match++;
-      }
-
-      alert("🏆 Bracket creato correttamente");
     };
   </script>
 
