@@ -5,7 +5,6 @@
   <title>Clash Royale Tournament – 1024</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
 
   <style>
@@ -24,24 +23,29 @@
 <body class="relative min-h-screen text-white overflow-hidden">
 
   <!-- VIDEO BACKGROUND -->
-  <video
-    autoplay
-    muted
-    loop
-    playsinline
-    preload="auto"
-    class="absolute inset-0 w-full h-full object-cover"
-  >
+  <video autoplay muted loop playsinline preload="auto"
+    class="absolute inset-0 w-full h-full object-cover">
     <source src="logo-animato.mp4" type="video/mp4" />
   </video>
 
   <!-- OVERLAY -->
   <div class="absolute inset-0 bg-black/60"></div>
 
+  <!-- TOP RIGHT CONTROLS -->
+  <div class="absolute top-4 right-4 z-20 flex gap-2">
+    <button onclick="startTournament()"
+      class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded font-bold">
+      START
+    </button>
+    <button onclick="endTournament()"
+      class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded font-bold">
+      END
+    </button>
+  </div>
+
   <!-- UI -->
   <div id="ui" class="relative z-10 min-h-screen flex items-center justify-center">
-    <div
-      class="bg-white/10 backdrop-blur-xl rounded-2xl p-8 w-full max-w-md shadow-2xl">
+    <div class="bg-white/10 backdrop-blur-xl rounded-2xl p-8 w-full max-w-md shadow-2xl">
 
       <h1 class="text-2xl font-bold text-center mb-6">
         🏆 Clash Royale Tournament
@@ -56,11 +60,13 @@
       <input id="discordUser" placeholder="Discord username"
         class="w-full mb-4 p-3 rounded bg-black/40 border border-white/20" />
 
-      <!-- RED BUTTON -->
       <button onclick="registerPlayer()"
         class="w-full bg-red-600 hover:bg-red-700 text-white font-extrabold p-3 rounded tracking-wide">
         READY TO CLASH
       </button>
+
+      <p id="status"
+         class="text-center text-sm text-gray-300 mt-4"></p>
 
     </div>
   </div>
@@ -71,7 +77,10 @@
     import {
       getFirestore,
       collection,
-      addDoc
+      addDoc,
+      doc,
+      getDoc,
+      setDoc
     } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -86,13 +95,36 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // Delay interfaccia
+    const tournamentRef = doc(db, "config", "tournament");
+
+    let tournamentStarted = false;
+
+    // UI delay
     setTimeout(() => {
       document.getElementById("ui").classList.add("show");
     }, 1000);
 
-    // Registrazione giocatore
+    // Load tournament status
+    async function loadStatus() {
+      const snap = await getDoc(tournamentRef);
+      if (snap.exists()) {
+        tournamentStarted = snap.data().started;
+      }
+      document.getElementById("status").textContent =
+        tournamentStarted
+          ? "⛔ Torneo in corso – iscrizioni chiuse"
+          : "🟢 Iscrizioni aperte";
+    }
+
+    loadStatus();
+
+    // Register player
     window.registerPlayer = async () => {
+      if (tournamentStarted) {
+        alert("Iscrizioni chiuse");
+        return;
+      }
+
       const nick = nickname.value.trim();
       const tag = playerTag.value.trim();
       const discord = discordUser.value.trim();
@@ -114,6 +146,42 @@
       discordUser.value = "";
 
       alert("🔥 READY TO CLASH!");
+    };
+
+    // START TOURNAMENT
+    window.startTournament = async () => {
+      const pass = prompt("Inserisci password");
+      if (pass !== "robifede") {
+        alert("Password errata");
+        return;
+      }
+
+      await setDoc(tournamentRef, {
+        started: true,
+        startedAt: Date.now()
+      });
+
+      tournamentStarted = true;
+      loadStatus();
+      alert("🏁 Torneo avviato");
+    };
+
+    // END TOURNAMENT
+    window.endTournament = async () => {
+      const pass = prompt("Inserisci password");
+      if (pass !== "robifede") {
+        alert("Password errata");
+        return;
+      }
+
+      await setDoc(tournamentRef, {
+        started: false,
+        endedAt: Date.now()
+      });
+
+      tournamentStarted = false;
+      loadStatus();
+      alert("🛑 Torneo concluso");
     };
   </script>
 
