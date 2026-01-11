@@ -8,27 +8,41 @@
 <script src="https://cdn.tailwindcss.com"></script>
 
 <style>
-  body {
+  html, body {
     margin: 0;
-    overflow-x: hidden;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
     font-family: system-ui, sans-serif;
   }
 
-  video.bg {
+  /* VIDEO BACKGROUND */
+  #bgVideo {
     position: fixed;
-    inset: 0;
-    width: 100%;
-    height: 100%;
+    top: 0;
+    left: 0;
+    min-width: 100%;
+    min-height: 100%;
     object-fit: cover;
-    z-index: -1;
+    z-index: -10;
   }
 
-  .glass {
-    background: rgba(0,0,0,0.55);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border-radius: 1rem;
-    box-shadow: 0 0 40px rgba(0,0,0,0.6);
+  /* DARK OVERLAY */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: -5;
+  }
+
+  /* REGISTRATION CARD (COME PRIMA) */
+  .register-card {
+    background: rgba(20,20,20,0.75);
+    border-radius: 16px;
+    padding: 24px;
+    width: 320px;
+    box-shadow: 0 0 40px rgba(0,0,0,0.8);
+    backdrop-filter: blur(6px);
   }
 </style>
 
@@ -39,7 +53,6 @@ import {
   doc, setDoc, getDoc
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-/* 🔥 FIREBASE CONFIG */
 const firebaseConfig = {
   apiKey: "AIzaSyBUjtbuQfc2drjqivgoLFEyQ9k4Un4f6fQ",
   authDomain: "allmighty-tournaments.firebaseapp.com",
@@ -56,7 +69,7 @@ let players = [];
 let bracket = [];
 let startTime = null;
 
-/* ================= LOAD STATUS ================= */
+/* LOAD STATUS */
 async function loadStatus() {
   const snap = await getDoc(doc(db, "tournament", "status"));
   if (snap.exists() && snap.data().started) {
@@ -66,7 +79,7 @@ async function loadStatus() {
   }
 }
 
-/* ================= REGISTRATION ================= */
+/* REGISTRATION */
 window.registerPlayer = async () => {
   const nick = nickname.value.trim();
   const tag = playerTag.value.trim();
@@ -88,9 +101,9 @@ window.registerPlayer = async () => {
   alert("Iscrizione completata");
 };
 
-/* ================= START TOURNAMENT ================= */
+/* START TOURNAMENT */
 window.startTournament = async () => {
-  const pwd = prompt("Inserisci password");
+  const pwd = prompt("Password");
   if (pwd !== "robifede") return alert("Password errata");
 
   const statusRef = doc(db, "tournament", "status");
@@ -104,10 +117,7 @@ window.startTournament = async () => {
   players = [];
   snap.forEach(d => players.push(d.data()));
 
-  if (players.length < 2) {
-    alert("Giocatori insufficienti");
-    return;
-  }
+  if (players.length < 2) return alert("Giocatori insufficienti");
 
   players.sort(() => Math.random() - 0.5);
   bracket = [];
@@ -126,16 +136,16 @@ window.startTournament = async () => {
   startTimer();
 };
 
-/* ================= END TOURNAMENT ================= */
+/* END TOURNAMENT */
 window.endTournament = async () => {
-  const pwd = prompt("Inserisci password");
+  const pwd = prompt("Password");
   if (pwd !== "robifede") return alert("Password errata");
 
   await setDoc(doc(db, "tournament", "status"), { started: false });
   location.reload();
 };
 
-/* ================= UI ================= */
+/* UI */
 function showBracket() {
   registration.classList.add("hidden");
   bracketPage.classList.remove("hidden");
@@ -143,7 +153,7 @@ function showBracket() {
   bracketList.innerHTML = "";
   bracket.forEach(m => {
     const li = document.createElement("li");
-    li.className = "bg-black/50 p-3 rounded";
+    li.className = "bg-black/70 p-3 rounded";
     li.textContent = `${m.p1} vs ${m.p2}`;
     bracketList.appendChild(li);
   });
@@ -162,14 +172,16 @@ window.onload = loadStatus;
 
 <body class="text-white">
 
-<!-- 🎥 BACKGROUND VIDEO -->
-<video class="bg" autoplay muted loop>
-  <source src="logo-animato.mp4" type="video/mp4">
+<!-- VIDEO BACKGROUND -->
+<video id="bgVideo" autoplay muted loop playsinline>
+  <source src="./logo-animato.mp4" type="video/mp4">
 </video>
 
-<!-- 📝 REGISTRATION -->
+<div class="overlay"></div>
+
+<!-- REGISTRATION -->
 <div id="registration" class="min-h-screen flex items-center justify-center">
-  <div class="glass p-6 w-80">
+  <div class="register-card">
     <h2 class="text-2xl font-bold text-center mb-4">🎮 Iscrizione</h2>
 
     <input id="nickname" class="w-full mb-2 p-2 rounded text-black" placeholder="Nickname">
@@ -186,7 +198,7 @@ window.onload = loadStatus;
   </div>
 </div>
 
-<!-- 🏆 BRACKET -->
+<!-- BRACKET -->
 <div id="bracketPage" class="hidden min-h-screen p-6">
   <div class="flex justify-between items-center mb-6">
     <h2 id="timer" class="text-xl font-bold"></h2>
