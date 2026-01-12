@@ -1,152 +1,208 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8" />
-  <title>Clash Royale Tournament – 1024</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8">
+<title>Clash Royale Tournament</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.tailwindcss.com"></script>
 
-  <style>
-    #ui {
-      opacity: 0;
-      transform: scale(0.96);
-      transition: opacity 0.6s ease, transform 0.6s ease;
-    }
-    #ui.show {
-      opacity: 1;
-      transform: scale(1);
-    }
-  </style>
+<style>
+#ui { opacity:0; transform:scale(.96); transition:.6s }
+#ui.show { opacity:1; transform:scale(1) }
+</style>
 </head>
 
 <body class="relative min-h-screen text-white overflow-hidden">
 
-  <!-- VIDEO BACKGROUND -->
-  <video autoplay muted loop playsinline preload="auto"
-    class="absolute inset-0 w-full h-full object-cover">
-    <source src="logo-animato.mp4" type="video/mp4" />
-  </video>
+<!-- VIDEO BACKGROUND -->
+<video autoplay muted loop playsinline
+ class="absolute inset-0 w-full h-full object-cover">
+  <source src="logo-animato.mp4" type="video/mp4">
+</video>
 
-  <!-- OVERLAY -->
-  <div class="absolute inset-0 bg-black/60"></div>
+<div class="absolute inset-0 bg-black/70"></div>
 
-  <!-- START BUTTON -->
-  <div style="position:fixed;top:16px;right:16px;z-index:9999">
-    <button onclick="startTournament()"
-      class="bg-red-600 hover:bg-red-700 px-5 py-2 rounded font-extrabold">
-      START TOURNAMENT
-    </button>
-  </div>
+<!-- REGISTRATION UI -->
+<div id="ui" class="relative z-10 min-h-screen flex items-center justify-center">
 
-  <!-- UI -->
-  <div id="ui" class="relative z-10 min-h-screen flex items-center justify-center">
-    <div class="bg-white/10 backdrop-blur-xl rounded-2xl p-8 w-full max-w-md shadow-2xl">
+<div class="bg-white/10 backdrop-blur-xl p-8 rounded-2xl w-full max-w-md">
 
-      <h1 class="text-2xl font-bold text-center mb-1">
-        🏆 Clash Royale Tournament
-      </h1>
+<h1 class="text-2xl font-bold text-center mb-2">🏆 Clash Royale Tournament</h1>
+<p class="text-center mb-4">Iscritti: <span id="count">0</span></p>
 
-      <!-- PLAYER COUNT -->
-      <p class="text-center text-sm text-gray-300 mb-6">
-        👥 Giocatori iscritti: <span id="playerCount" class="font-bold">0</span> / 1024
-      </p>
+<input id="nickname" placeholder="Nickname"
+ class="w-full mb-3 p-3 rounded bg-black/40">
 
-      <input id="nickname" placeholder="Nickname"
-        class="w-full mb-3 p-3 rounded bg-black/40 border border-white/20" />
+<input id="playerTag" placeholder="Player Tag"
+ class="w-full mb-3 p-3 rounded bg-black/40">
 
-      <input id="playerTag" placeholder="Player Tag"
-        class="w-full mb-3 p-3 rounded bg-black/40 border border-white/20" />
+<input id="discordUser" placeholder="Discord username"
+ class="w-full mb-4 p-3 rounded bg-black/40">
 
-      <input id="discordUser" placeholder="Discord username"
-        class="w-full mb-4 p-3 rounded bg-black/40 border border-white/20" />
+<button onclick="registerPlayer()"
+ class="w-full bg-red-600 hover:bg-red-700 p-3 font-bold rounded mb-3">
+ READY TO CLASH
+</button>
 
-      <button onclick="registerPlayer()"
-        class="w-full bg-red-600 hover:bg-red-700 text-white font-extrabold p-3 rounded">
-        READY TO CLASH
-      </button>
+<button onclick="startTournament()"
+ class="w-full bg-red-600 hover:bg-red-700 p-3 font-bold rounded">
+ START TOURNAMENT
+</button>
 
-    </div>
-  </div>
+</div>
+</div>
 
-  <!-- FIREBASE -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-    import {
-      getFirestore,
-      collection,
-      addDoc,
-      doc,
-      setDoc,
-      onSnapshot
-    } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+<!-- BRACKET -->
+<div id="bracket" class="hidden relative z-10 p-6">
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyBUjtbuQfc2drjqivgoLFEyQ9k4Un4f6fQ",
-      authDomain: "allmighty-tournaments.firebaseapp.com",
-      projectId: "allmighty-tournaments",
-      storageBucket: "allmighty-tournaments.firebasestorage.app",
-      messagingSenderId: "876830337732",
-      appId: "1:876830337732:web:12509e3197a65e6350b791"
-    };
+<div class="flex justify-between items-center mb-4">
+<h2 class="text-xl font-bold">
+ Round <span id="roundNum"></span>
+</h2>
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+<button onclick="endTournament()"
+ class="bg-red-600 px-4 py-2 rounded font-bold">
+ END
+</button>
+</div>
 
-    const tournamentRef = doc(db, "config", "tournament");
-    const playersRef = collection(db, "players");
+<p class="mb-4">⏱ Tempo round: <span id="timer"></span></p>
 
-    // Delay UI
-    setTimeout(() => {
-      document.getElementById("ui").classList.add("show");
-    }, 1000);
+<div id="matches" class="grid md:grid-cols-2 gap-4"></div>
+</div>
 
-    // 🔄 REALTIME PLAYER COUNT
-    onSnapshot(playersRef, snap => {
-      document.getElementById("playerCount").textContent = snap.size;
-    });
+<!-- FIREBASE -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import {
+ getFirestore, collection, addDoc, getDocs,
+ doc, setDoc, getDoc, query, where
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-    // REGISTER PLAYER
-    window.registerPlayer = async () => {
-      const nick = nickname.value.trim();
-      const tag = playerTag.value.trim();
-      const discord = discordUser.value.trim();
+const firebaseConfig = {
+ apiKey: "AIzaSyBUjtbuQfc2drjqivgoLFEyQ9k4Un4f6fQ",
+ authDomain: "allmighty-tournaments.firebaseapp.com",
+ projectId: "allmighty-tournaments",
+ storageBucket: "allmighty-tournaments.firebasestorage.app",
+ messagingSenderId: "876830337732",
+ appId: "1:876830337732:web:12509e3197a65e6350b791"
+};
 
-      if (!nick || !tag || !discord) {
-        alert("Compila tutti i campi");
-        return;
-      }
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-      await addDoc(playersRef, {
-        nick,
-        tag,
-        discord,
-        createdAt: Date.now()
-      });
+setTimeout(()=>ui.classList.add("show"),1000);
 
-      nickname.value = "";
-      playerTag.value = "";
-      discordUser.value = "";
+/* PLAYER COUNT */
+async function updateCount(){
+ const snap = await getDocs(collection(db,"players"));
+ count.textContent = snap.size;
+}
+updateCount();
 
-      alert("🔥 READY TO CLASH!");
-    };
+/* REGISTER */
+window.registerPlayer = async()=>{
+ await addDoc(collection(db,"players"),{
+  nick:nickname.value,
+  tag:playerTag.value,
+  discord:discordUser.value,
+  createdAt:Date.now()
+ });
+ nickname.value=playerTag.value=discordUser.value="";
+ updateCount();
+};
 
-    // START TOURNAMENT
-    window.startTournament = async () => {
-      const pass = prompt("Inserisci password");
-      if (pass !== "robifede") {
-        alert("Password errata");
-        return;
-      }
+/* START TOURNAMENT */
+window.startTournament = async()=>{
+ if(prompt("Password")!=="robifede") return;
 
-      await setDoc(tournamentRef, {
-        started: true,
-        startedAt: Date.now()
-      });
+ const snap = await getDocs(collection(db,"players"));
+ let players=[];
+ snap.forEach(d=>players.push(d.data().discord));
 
-      window.location.href = "bracket.html";
-    };
-  </script>
+ players.sort(()=>Math.random()-.5);
 
+ let matches=[];
+ if(players.length%2){
+  matches.push({p1:players.pop(),p2:null,bye:true});
+ }
+
+ for(let i=0;i<players.length;i+=2){
+  matches.push({p1:players[i],p2:players[i+1],bye:false});
+ }
+
+ await setDoc(doc(db,"tournament","state"),{
+  started:true,
+  round:1,
+  roundStart:Date.now()
+ });
+
+ for(const m of matches){
+  await addDoc(collection(db,"matches"),{
+   round:1,
+   ...m,
+   winner:null,
+   confirmP1:false,
+   confirmP2:false
+  });
+ }
+
+ showBracket();
+};
+
+/* END TOURNAMENT */
+window.endTournament = async()=>{
+ if(prompt("Password")!=="robifede") return;
+ await setDoc(doc(db,"tournament","state"),{started:false});
+ location.reload();
+};
+
+/* SHOW BRACKET */
+async function showBracket(){
+ ui.classList.add("hidden");
+ bracket.classList.remove("hidden");
+
+ const state = (await getDoc(doc(db,"tournament","state"))).data();
+ roundNum.textContent = state.round;
+
+ const snap = await getDocs(
+  query(collection(db,"matches"), where("round","==",state.round))
+ );
+
+ matches.innerHTML="";
+ snap.forEach(d=>{
+  const m=d.data();
+  const div=document.createElement("div");
+  div.className="bg-white/10 p-3 rounded";
+
+  if(m.bye){
+   div.textContent = `${m.p1} (BYE)`;
+  } else {
+   div.innerHTML = `
+    <p>${m.p1} vs ${m.p2}</p>
+    <a class="underline text-blue-400"
+     href="match.html?match=${d.id}&player=${m.p1}">
+     Apri match
+    </a>
+   `;
+  }
+  matches.appendChild(div);
+ });
+
+ startTimer(state.roundStart);
+}
+
+/* TIMER */
+function startTimer(start){
+ setInterval(()=>{
+  let diff = 900000 - (Date.now()-start);
+  if(diff<0) diff=0;
+  timer.textContent =
+   Math.floor(diff/60000)+"m "+
+   Math.floor(diff%60000/1000)+"s";
+ },1000);
+}
+</script>
 </body>
 </html>
