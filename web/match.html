@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Match Room</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-900 text-white min-h-screen p-4">
+
+<h1 class="text-xl font-bold mb-2">⚔ Match Room</h1>
+<p id="players" class="mb-4"></p>
+
+<div id="chat"
+ class="bg-black/40 p-4 rounded h-64 overflow-y-auto mb-4"></div>
+
+<input id="msg"
+ class="w-full p-2 mb-2 rounded bg-black/60"
+ placeholder="Scrivi messaggio...">
+
+<button onclick="sendMessage()"
+ class="w-full bg-blue-600 p-2 rounded mb-4">
+ Invia
+</button>
+
+<button onclick="confirmWin()"
+ class="w-full bg-green-600 p-3 rounded font-bold">
+ CONFERMA VITTORIA
+</button>
+
+<script type="module">
+import { initializeApp } from
+"https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import {
+ getFirestore, doc, getDoc, updateDoc,
+ collection, addDoc, onSnapshot, query, where
+} from
+"https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+const firebaseConfig = {
+ apiKey: "AIzaSyBUjtbuQfc2drjqivgoLFEyQ9k4Un4f6fQ",
+ authDomain: "allmighty-tournaments.firebaseapp.com",
+ projectId: "allmighty-tournaments",
+ storageBucket: "allmighty-tournaments.firebasestorage.app",
+ messagingSenderId: "876830337732",
+ appId: "1:876830337732:web:12509e3197a65e6350b791"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const params = new URLSearchParams(location.search);
+const matchId = params.get("match");
+const player = params.get("player");
+
+const matchRef = doc(db,"matches",matchId);
+const chatRef = collection(db,"chats");
+
+const snap = await getDoc(matchRef);
+const match = snap.data();
+
+players.textContent = `${match.p1} vs ${match.p2}`;
+
+/* CHAT REALTIME */
+onSnapshot(
+ query(chatRef, where("matchId","==",matchId)),
+ s=>{
+  chat.innerHTML="";
+  s.forEach(d=>{
+   const m=d.data();
+   const p=document.createElement("p");
+   p.textContent = `${m.sender}: ${m.message}`;
+   chat.appendChild(p);
+  });
+ }
+);
+
+/* SEND MESSAGE */
+window.sendMessage = async()=>{
+ if(!msg.value) return;
+ await addDoc(chatRef,{
+  matchId,
+  sender:player,
+  message:msg.value,
+  timestamp:Date.now()
+ });
+ msg.value="";
+};
+
+/* CONFIRM RESULT */
+window.confirmWin = async()=>{
+ if(player===match.p1)
+  await updateDoc(matchRef,{confirmP1:true});
+ if(player===match.p2)
+  await updateDoc(matchRef,{confirmP2:true});
+
+ const updated = (await getDoc(matchRef)).data();
+ if(updated.confirmP1 && updated.confirmP2){
+  await updateDoc(matchRef,{winner:player});
+  alert("Risultato confermato");
+ }
+};
+</script>
+</body>
+</html>
