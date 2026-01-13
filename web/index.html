@@ -14,70 +14,46 @@
 
 <body class="relative min-h-screen text-white overflow-hidden">
 
-<!-- VIDEO BACKGROUND -->
 <video autoplay muted loop playsinline class="absolute inset-0 w-full h-full object-cover">
   <source src="logo-animato.mp4" type="video/mp4">
 </video>
 <div class="absolute inset-0 bg-black/70"></div>
 
-<!-- REGISTRATION -->
-<div id="ui" class="relative z-10 min-h-screen flex items-center justify-center">
-<div class="bg-white/10 backdrop-blur-xl p-8 rounded-2xl w-full max-w-md">
+<!-- UI -->
+<div id="ui" class="relative z-10 p-6 max-w-4xl mx-auto hidden">
 
-<h1 class="text-2xl font-bold text-center mb-2">🏆 Clash Royale Tournament</h1>
-<p class="text-center mb-4">Iscritti: <span id="count">0</span></p>
+<!-- HEADER -->
+<div id="header" class="flex justify-between items-center mb-4 hidden">
+  <h2 class="text-xl font-bold">
+    Round <span id="roundNum"></span>
+  </h2>
 
-<input id="nickname" placeholder="Nickname" class="w-full mb-3 p-3 rounded bg-black/40">
-<input id="playerTag" placeholder="Player Tag" class="w-full mb-3 p-3 rounded bg-black/40">
-<input id="discordUser" placeholder="Discord username" class="w-full mb-4 p-3 rounded bg-black/40">
-
-<button onclick="registerPlayer()" class="w-full bg-red-600 p-3 font-bold rounded mb-3">
-READY TO CLASH
-</button>
-
-<button onclick="startTournament()" class="w-full bg-red-600 p-3 font-bold rounded">
-START TOURNAMENT
-</button>
-
-</div>
+  <div class="flex gap-2">
+    <button onclick="showPairings()" class="bg-white/20 px-4 py-2 rounded">PAIRINGS</button>
+    <button onclick="showRanking()" class="bg-white/20 px-4 py-2 rounded">RANKING</button>
+  </div>
 </div>
 
-<!-- BRACKET -->
-<div id="bracket" class="hidden relative z-10 p-6">
+<!-- TIMER -->
+<p id="timerBox" class="text-center text-2xl font-bold mb-6 hidden">
+ ⏱ <span id="timer"></span>
+</p>
 
-<div class="flex justify-between items-center mb-4">
-<h2 class="text-xl font-bold">Round <span id="roundNum"></span></h2>
-
-<div class="flex gap-2">
-<button onclick="showPairings()" class="bg-white/20 px-4 py-2 rounded">PAIRINGS</button>
-<button onclick="showRanking()" class="bg-white/20 px-4 py-2 rounded">RANKING</button>
-</div>
-
-<button onclick="endTournament()" class="bg-red-600 px-4 py-2 rounded font-bold">END</button>
-</div>
-
-<p class="mb-4">⏱ Tempo round: <span id="timer"></span></p>
-
-<div id="matches" class="grid md:grid-cols-2 gap-4"></div>
+<div id="matches" class="grid md:grid-cols-2 gap-4 hidden"></div>
 <div id="rankingView" class="hidden mt-6"></div>
 
-<div class="mt-6 text-center">
-<button id="nextRoundBtn" class="hidden bg-green-600 px-6 py-3 rounded font-bold">
-NEXT ROUND
-</button>
-</div>
+<!-- FINAL RANKING -->
+<div id="finalRanking" class="hidden mt-10"></div>
 
 </div>
 
-<!-- FIREBASE -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import {
- getFirestore, collection, addDoc, getDocs,
- doc, setDoc, query, where, onSnapshot
+ getFirestore, doc, collection, getDocs,
+ query, where, onSnapshot
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-/* FIREBASE CONFIG */
 const firebaseConfig = {
  apiKey:"AIzaSyBUjtbuQfc2drjqivgoLFEyQ9k4Un4f6fQ",
  authDomain:"allmighty-tournaments.firebaseapp.com",
@@ -87,114 +63,117 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-setTimeout(()=>ui.classList.add("show"),1000);
+setTimeout(()=>ui.classList.add("show"),500);
 
-/* COUNT LIVE */
-onSnapshot(collection(db,"players"),snap=>{
- count.textContent=snap.size;
+/* TOURNAMENT STATE */
+onSnapshot(doc(db,"tournament","state"),snap=>{
+ if(!snap.exists()) return;
+
+ const data = snap.data();
+ ui.classList.remove("hidden");
+
+ // TORNEO FINITO
+ if(!data.started && data.ended){
+  showFinalRanking();
+  return;
+ }
+
+ // TORNEO ATTIVO
+ if(data.started){
+  header.classList.remove("hidden");
+  timerBox.classList.remove("hidden");
+  matches.classList.remove("hidden");
+  finalRanking.classList.add("hidden");
+
+  roundNum.textContent = data.round;
+  listenMatches(data.round);
+  startTimer(data.roundStart, data.roundDuration);
+ }
 });
 
-/* REGISTER */
-window.registerPlayer = async()=>{
- await addDoc(collection(db,"players"),{
-  nick:nickname.value,
-  tag:playerTag.value,
-  discord:discordUser.value,
-  score:0,
-  ranking:1000,
-  createdAt:Date.now()
- });
- nickname.value=playerTag.value=discordUser.value="";
-};
-
-/* START */
-window.startTournament = async()=>{
- if(prompt("Password")!=="robifede")return;
- await setDoc(doc(db,"tournament","state"),{
-  started:true,
-  round:1,
-  roundStart:Date.now()
- });
-};
-
-/* END */
-window.endTournament = async()=>{
- if(prompt("Password")!=="robifede")return;
- await setDoc(doc(db,"tournament","state"),{started:false});
- location.reload();
-};
-
-/* LIVE TOURNAMENT */
-onSnapshot(doc(db,"tournament","state"),snap=>{
- if(!snap.exists()||!snap.data().started)return;
-
- ui.classList.add("hidden");
- bracket.classList.remove("hidden");
- roundNum.textContent=snap.data().round;
-
+/* MATCHES */
+function listenMatches(round){
  onSnapshot(
-  query(collection(db,"matches"),where("round","==",snap.data().round)),
+  query(collection(db,"matches"), where("round","==",round)),
   s=>{
    matches.innerHTML="";
-   let allDone=true;
-
    s.forEach(d=>{
     const m=d.data();
-    if(!m.winner) allDone=false;
-
     const div=document.createElement("div");
     div.className="bg-white/10 p-3 rounded text-center";
-    div.innerHTML=m.p2
-     ? `<b>${m.p1}</b><br>vs<br><b>${m.p2}</b>`
-     : `${m.p1} (BYE)`;
+    div.innerHTML = m.p2
+      ? `<b>${m.p1}</b><br>vs<br><b>${m.p2}</b>`
+      : `${m.p1} (BYE)`;
     matches.appendChild(div);
    });
-
-   nextRoundBtn.classList.toggle("hidden",!allDone);
   }
  );
+}
 
- startTimer(snap.data().roundStart);
-});
+/* FINAL RANKING */
+async function showFinalRanking(){
+ header.classList.add("hidden");
+ timerBox.classList.add("hidden");
+ matches.classList.add("hidden");
+ rankingView.classList.add("hidden");
+ finalRanking.classList.remove("hidden");
+
+ const snap = await getDocs(collection(db,"players"));
+ let players=[];
+ snap.forEach(d=>players.push(d.data()));
+
+ players.sort((a,b)=>b.score-a.score||b.ranking-a.ranking);
+
+ finalRanking.innerHTML = `
+  <h2 class="text-3xl font-bold text-center mb-6">🏆 Classifica Finale</h2>
+ `;
+
+ players.forEach((p,i)=>{
+  finalRanking.innerHTML+=`
+   <div class="flex justify-between bg-white/10 p-4 rounded mb-2 text-lg">
+    <span>#${i+1} ${p.nick}</span>
+    <span>${p.score} pts</span>
+   </div>`;
+ });
+}
 
 /* VIEW SWITCH */
+window.showRanking = async()=>{
+ matches.classList.add("hidden");
+ rankingView.classList.remove("hidden");
+
+ const snap = await getDocs(collection(db,"players"));
+ let players=[];
+ snap.forEach(d=>players.push(d.data()));
+ players.sort((a,b)=>b.score-a.score||b.ranking-a.ranking);
+
+ rankingView.innerHTML =
+  `<h3 class="text-xl font-bold mb-4 text-center">🏅 Ranking</h3>`;
+
+ players.forEach((p,i)=>{
+  rankingView.innerHTML+=`
+   <div class="flex justify-between bg-white/10 p-3 rounded mb-2">
+    <span>#${i+1} ${p.nick}</span>
+    <span>${p.score} pts</span>
+   </div>`;
+ });
+};
+
 window.showPairings=()=>{
  matches.classList.remove("hidden");
  rankingView.classList.add("hidden");
 };
 
-window.showRanking=()=>{
- matches.classList.add("hidden");
- rankingView.classList.remove("hidden");
-};
-
-/* 🔥 RANKING LIVE 🔥 */
-onSnapshot(collection(db,"players"),snap=>{
- let players=[];
- snap.forEach(d=>players.push(d.data()));
-
- players.sort((a,b)=>{
-  if(b.score!==a.score)return b.score-a.score;
-  return b.ranking-a.ranking;
- });
-
- rankingView.innerHTML=`<h3 class="text-xl font-bold mb-4 text-center">🏅 Ranking Live</h3>`;
-
- players.forEach((p,i)=>{
-  rankingView.innerHTML+=`
-  <div class="flex justify-between bg-white/10 p-3 rounded mb-2">
-   <span>#${i+1} ${p.nick}</span>
-   <span>Score: ${p.score}</span>
-  </div>`;
- });
-});
-
 /* TIMER */
-function startTimer(start){
- setInterval(()=>{
-  let d=900000-(Date.now()-start);
+let timerInt;
+function startTimer(start,duration){
+ clearInterval(timerInt);
+ timerInt=setInterval(()=>{
+  let d=duration-(Date.now()-start);
   if(d<0)d=0;
-  timer.textContent=Math.floor(d/60000)+"m "+Math.floor(d%60000/1000)+"s";
+  timer.textContent=
+   Math.floor(d/60000)+"m "+
+   Math.floor(d%60000/1000)+"s";
  },1000);
 }
 </script>
