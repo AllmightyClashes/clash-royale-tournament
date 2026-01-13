@@ -27,20 +27,15 @@
 <h1 class="text-2xl font-bold text-center mb-2">🏆 Clash Royale Tournament</h1>
 <p class="text-center mb-4">Iscritti: <span id="count">0</span></p>
 
-<input id="nickname" placeholder="Nickname"
- class="w-full mb-3 p-3 rounded bg-black/40">
-<input id="playerTag" placeholder="Player Tag"
- class="w-full mb-3 p-3 rounded bg-black/40">
-<input id="discordUser" placeholder="Discord username"
- class="w-full mb-4 p-3 rounded bg-black/40">
+<input id="nickname" placeholder="Nickname" class="w-full mb-3 p-3 rounded bg-black/40">
+<input id="playerTag" placeholder="Player Tag" class="w-full mb-3 p-3 rounded bg-black/40">
+<input id="discordUser" placeholder="Discord username" class="w-full mb-4 p-3 rounded bg-black/40">
 
-<button onclick="registerPlayer()"
- class="w-full bg-red-600 hover:bg-red-700 p-3 font-bold rounded mb-3">
+<button onclick="registerPlayer()" class="w-full bg-red-600 p-3 font-bold rounded mb-3">
 READY TO CLASH
 </button>
 
-<button onclick="startTournament()"
- class="w-full bg-red-600 hover:bg-red-700 p-3 font-bold rounded">
+<button onclick="startTournament()" class="w-full bg-red-600 p-3 font-bold rounded">
 START TOURNAMENT
 </button>
 
@@ -51,34 +46,28 @@ START TOURNAMENT
 <div id="bracket" class="hidden relative z-10 p-6">
 
 <div class="flex justify-between items-center mb-4">
-
-<h2 class="text-xl font-bold">
-Round <span id="roundNum"></span>
-</h2>
+<h2 class="text-xl font-bold">Round <span id="roundNum"></span></h2>
 
 <div class="flex gap-2">
-<button onclick="showPairings()"
- class="bg-white/20 px-4 py-2 rounded font-bold">
-PAIRINGS
-</button>
-
-<button onclick="showRanking()"
- class="bg-white/20 px-4 py-2 rounded font-bold">
-RANKING
-</button>
+<button onclick="showPairings()" class="bg-white/20 px-4 py-2 rounded">PAIRINGS</button>
+<button onclick="showRanking()" class="bg-white/20 px-4 py-2 rounded">RANKING</button>
 </div>
 
-<button onclick="endTournament()"
- class="bg-red-600 px-4 py-2 rounded font-bold">
-END
-</button>
-
+<button onclick="endTournament()" class="bg-red-600 px-4 py-2 rounded font-bold">END</button>
 </div>
 
 <p class="mb-4">⏱ Tempo round: <span id="timer"></span></p>
 
 <div id="matches" class="grid md:grid-cols-2 gap-4"></div>
 <div id="rankingView" class="hidden mt-6"></div>
+
+<div class="mt-6 text-center">
+<button id="nextRoundBtn"
+ onclick="nextRound()"
+ class="hidden bg-green-600 px-6 py-3 rounded font-bold">
+NEXT ROUND
+</button>
+</div>
 
 </div>
 
@@ -98,7 +87,6 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-
 setTimeout(()=>ui.classList.add("show"),1000);
 
 /* COUNT */
@@ -116,7 +104,6 @@ window.registerPlayer = async()=>{
   discord:discordUser.value,
   score:0,
   ranking:1000,
-  byeUsed:false,
   createdAt:Date.now()
  });
  nickname.value=playerTag.value=discordUser.value="";
@@ -134,7 +121,6 @@ function havePlayedBefore(a,b,matches){
 async function swissPairing(round){
  const pSnap = await getDocs(collection(db,"players"));
  const mSnap = await getDocs(collection(db,"matches"));
-
  let players=[], past=[];
  pSnap.forEach(d=>players.push({id:d.id,...d.data()}));
  mSnap.forEach(d=>past.push(d.data()));
@@ -151,38 +137,21 @@ async function swissPairing(round){
   if(used.has(p1.discord)) continue;
 
   let opp=null;
-
   for(let j=i+1;j<players.length;j++){
    let p2=players[j];
-   if(!used.has(p2.discord)
-    && p2.score===p1.score
-    && !havePlayedBefore(p1.discord,p2.discord,past)){
+   if(!used.has(p2.discord) &&
+      (p2.score===p1.score || p2.score===p1.score-1) &&
+      !havePlayedBefore(p1.discord,p2.discord,past)){
      opp=p2; break;
    }
   }
 
-  if(!opp){
-   for(let j=i+1;j<players.length;j++){
-    let p2=players[j];
-    if(!used.has(p2.discord)
-     && p2.score===p1.score-1
-     && !havePlayedBefore(p1.discord,p2.discord,past)){
-      opp=p2; break;
-    }
-   }
-  }
-
   if(opp){
-   used.add(p1.discord);
-   used.add(opp.discord);
-   await addDoc(collection(db,"matches"),{
-    round,p1:p1.discord,p2:opp.discord,bye:false,winner:null
-   });
+   used.add(p1.discord); used.add(opp.discord);
+   await addDoc(collection(db,"matches"),{round,p1:p1.discord,p2:opp.discord,winner:null});
   } else {
    used.add(p1.discord);
-   await addDoc(collection(db,"matches"),{
-    round,p1:p1.discord,p2:null,bye:true,winner:p1.discord
-   });
+   await addDoc(collection(db,"matches"),{round,p1:p1.discord,p2:null,winner:p1.discord});
   }
  }
 }
@@ -196,6 +165,23 @@ window.startTournament = async()=>{
   roundStart:Date.now()
  });
  await swissPairing(1);
+};
+
+/* NEXT ROUND */
+window.nextRound = async()=>{
+ if(prompt("Password")!=="robifede") return;
+
+ const stateRef = doc(db,"tournament","state");
+ const stateSnap = await getDoc(stateRef);
+ const next = stateSnap.data().round + 1;
+
+ await setDoc(stateRef,{
+  started:true,
+  round:next,
+  roundStart:Date.now()
+ });
+
+ await swissPairing(next);
 };
 
 /* END */
@@ -217,15 +203,21 @@ onSnapshot(doc(db,"tournament","state"),snap=>{
   query(collection(db,"matches"),where("round","==",snap.data().round)),
   s=>{
    matches.innerHTML="";
+   let allDone=true;
+
    s.forEach(d=>{
     const m=d.data();
+    if(!m.winner) allDone=false;
+
     const div=document.createElement("div");
     div.className="bg-white/10 p-3 rounded text-center";
-    div.innerHTML = m.bye
-     ? `${m.p1} (BYE)`
-     : `<b>${m.p1}</b><br>vs<br><b>${m.p2}</b>`;
+    div.innerHTML = m.p2
+      ? `<b>${m.p1}</b><br>vs<br><b>${m.p2}</b>`
+      : `${m.p1} (BYE)`;
     matches.appendChild(div);
    });
+
+   nextRoundBtn.classList.toggle("hidden",!allDone);
   }
  );
 
@@ -233,31 +225,16 @@ onSnapshot(doc(db,"tournament","state"),snap=>{
 });
 
 /* VIEW SWITCH */
-window.showPairings = ()=>{
- matches.classList.remove("hidden");
- rankingView.classList.add("hidden");
-};
-
-window.showRanking = async()=>{
- matches.classList.add("hidden");
- rankingView.classList.remove("hidden");
-
- const snap = await getDocs(collection(db,"players"));
- let players=[];
- snap.forEach(d=>players.push(d.data()));
-
- players.sort((a,b)=>{
-  if(b.score!==a.score) return b.score-a.score;
-  return b.ranking-a.ranking;
- });
-
- rankingView.innerHTML = `<h3 class="text-xl font-bold mb-4 text-center">🏅 Ranking</h3>`;
-
- players.forEach((p,i)=>{
-  const row=document.createElement("div");
-  row.className="flex justify-between bg-white/10 p-3 rounded mb-2";
-  row.innerHTML=`<span>#${i+1} ${p.nick}</span><span>Score: ${p.score}</span>`;
-  rankingView.appendChild(row);
+window.showPairings=()=>{matches.classList.remove("hidden");rankingView.classList.add("hidden")};
+window.showRanking=async()=>{
+ matches.classList.add("hidden"); rankingView.classList.remove("hidden");
+ const snap=await getDocs(collection(db,"players"));
+ let p=[]; snap.forEach(d=>p.push(d.data()));
+ p.sort((a,b)=>b.score-a.score||b.ranking-a.ranking);
+ rankingView.innerHTML=`<h3 class="text-xl font-bold mb-4 text-center">🏅 Ranking</h3>`;
+ p.forEach((x,i)=>{
+  rankingView.innerHTML+=`<div class="flex justify-between bg-white/10 p-3 rounded mb-2">
+  <span>#${i+1} ${x.nick}</span><span>Score: ${x.score}</span></div>`;
  });
 };
 
@@ -266,12 +243,9 @@ function startTimer(start){
  setInterval(()=>{
   let d=900000-(Date.now()-start);
   if(d<0)d=0;
-  timer.textContent =
-   Math.floor(d/60000)+"m "+
-   Math.floor(d%60000/1000)+"s";
+  timer.textContent=Math.floor(d/60000)+"m "+Math.floor(d%60000/1000)+"s";
  },1000);
 }
 </script>
-
 </body>
 </html>
