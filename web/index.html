@@ -4,196 +4,199 @@
 <meta charset="UTF-8">
 <title>Clash Royale Tournament</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
 <script src="https://cdn.tailwindcss.com"></script>
 
 <style>
-#ui { opacity:0; transform:scale(.96); transition:.6s }
-#ui.show { opacity:1; transform:scale(1) }
+#ui{opacity:0;transform:scale(.96);transition:.6s}
+#ui.show{opacity:1;transform:scale(1)}
 </style>
 </head>
 
 <body class="relative min-h-screen text-white overflow-hidden">
 
 <!-- VIDEO BACKGROUND -->
-<video autoplay muted loop playsinline
- class="absolute inset-0 w-full h-full object-cover">
+<video autoplay muted loop playsinline class="absolute inset-0 w-full h-full object-cover">
   <source src="logo-animato.mp4" type="video/mp4">
 </video>
-
 <div class="absolute inset-0 bg-black/70"></div>
 
-<!-- REGISTRATION UI -->
+<!-- REGISTRATION -->
 <div id="ui" class="relative z-10 min-h-screen flex items-center justify-center">
-  <div class="bg-white/10 backdrop-blur-xl p-8 rounded-2xl w-full max-w-md">
+<div class="bg-white/10 backdrop-blur-xl p-8 rounded-2xl w-full max-w-md">
 
-    <h1 class="text-2xl font-bold text-center mb-2">🏆 Clash Royale Tournament</h1>
-    <p class="text-center mb-4">Iscritti: <span id="count">0</span></p>
+<h1 class="text-2xl font-bold text-center mb-2">🏆 Clash Royale Tournament</h1>
+<p class="text-center mb-4">Iscritti: <span id="count">0</span></p>
 
-    <input id="nickname" placeholder="Nickname"
-     class="w-full mb-3 p-3 rounded bg-black/40">
+<input id="nickname" placeholder="Nickname" class="w-full mb-3 p-3 rounded bg-black/40">
+<input id="playerTag" placeholder="Player Tag" class="w-full mb-3 p-3 rounded bg-black/40">
+<input id="discordUser" placeholder="Discord username" class="w-full mb-4 p-3 rounded bg-black/40">
 
-    <input id="playerTag" placeholder="Player Tag"
-     class="w-full mb-3 p-3 rounded bg-black/40">
+<button onclick="registerPlayer()" class="w-full bg-red-600 hover:bg-red-700 p-3 font-bold rounded mb-3">
+READY TO CLASH
+</button>
 
-    <input id="discordUser" placeholder="Discord username"
-     class="w-full mb-4 p-3 rounded bg-black/40">
+<button onclick="startTournament()" class="w-full bg-red-600 hover:bg-red-700 p-3 font-bold rounded">
+START TOURNAMENT
+</button>
 
-    <button onclick="registerPlayer()"
-     class="w-full bg-red-600 hover:bg-red-700 p-3 font-bold rounded mb-3">
-     READY TO CLASH
-    </button>
-
-    <button onclick="startTournament()"
-     class="w-full bg-red-600 hover:bg-red-700 p-3 font-bold rounded">
-     START TOURNAMENT
-    </button>
-
-  </div>
+</div>
 </div>
 
 <!-- BRACKET -->
 <div id="bracket" class="hidden relative z-10 p-6">
-  <div class="flex justify-between items-center mb-4">
-    <h2 class="text-xl font-bold">
-      Round <span id="roundNum"></span>
-    </h2>
-
-    <button onclick="endTournament()"
-     class="bg-red-600 px-4 py-2 rounded font-bold">
-     END
-    </button>
-  </div>
-
-  <p class="mb-4">⏱ Tempo round: <span id="timer"></span></p>
-  <div id="matches" class="grid md:grid-cols-2 gap-4"></div>
+<div class="flex justify-between items-center mb-4">
+<h2 class="text-xl font-bold">Round <span id="roundNum"></span></h2>
+<button onclick="endTournament()" class="bg-red-600 px-4 py-2 rounded font-bold">END</button>
 </div>
 
-<!-- FIREBASE + STEP 2B -->
+<p class="mb-4">⏱ Tempo round: <span id="timer"></span></p>
+<div id="matches" class="grid md:grid-cols-2 gap-4"></div>
+</div>
+
+<!-- FIREBASE -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import {
-  getFirestore,
-  collection,
-  addDoc,
-  getDocs,
-  doc,
-  setDoc,
-  getDoc,
-  query,
-  where,
-  onSnapshot
+ getFirestore, collection, addDoc, getDocs,
+ doc, setDoc, getDoc, query, where, onSnapshot
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBUjtbuQfc2drjqivgoLFEyQ9k4Un4f6fQ",
-  authDomain: "allmighty-tournaments.firebaseapp.com",
-  projectId: "allmighty-tournaments",
+ apiKey:"AIzaSyBUjtbuQfc2drjqivgoLFEyQ9k4Un4f6fQ",
+ authDomain:"allmighty-tournaments.firebaseapp.com",
+ projectId:"allmighty-tournaments"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-
 setTimeout(()=>ui.classList.add("show"),1000);
 
-/* PLAYER COUNT */
+/* COUNT */
 async function updateCount(){
-  const snap = await getDocs(collection(db,"players"));
-  count.textContent = snap.size;
+ const snap = await getDocs(collection(db,"players"));
+ count.textContent = snap.size;
 }
 updateCount();
 
 /* REGISTER */
 window.registerPlayer = async()=>{
-  await addDoc(collection(db,"players"),{
-    nick:nickname.value,
-    tag:playerTag.value,
-    discord:discordUser.value,
-    createdAt:Date.now(),
-    score:0
-  });
-  nickname.value=playerTag.value=discordUser.value="";
-  updateCount();
+ await addDoc(collection(db,"players"),{
+  nick:nickname.value,
+  tag:playerTag.value,
+  discord:discordUser.value,
+  score:0,
+  ranking:1000,
+  byeUsed:false,
+  createdAt:Date.now()
+ });
+ nickname.value=playerTag.value=discordUser.value="";
+ updateCount();
 };
 
-/* START TOURNAMENT */
+/* REMATCH CHECK */
+function havePlayedBefore(a,b,matches){
+ return matches.some(m=>
+  (m.p1===a && m.p2===b)||(m.p1===b && m.p2===a)
+ );
+}
+
+/* SWISS PAIRING */
+async function swissPairing(round){
+ const pSnap = await getDocs(collection(db,"players"));
+ let players=[];
+ pSnap.forEach(d=>players.push({id:d.id,...d.data()}));
+
+ const mSnap = await getDocs(collection(db,"matches"));
+ let past=[];
+ mSnap.forEach(d=>past.push(d.data()));
+
+ players.sort((a,b)=>{
+  if(b.score!==a.score) return b.score-a.score;
+  return b.ranking-a.ranking;
+ });
+
+ let used=new Set();
+
+ for(let i=0;i<players.length;i++){
+  let p1=players[i];
+  if(used.has(p1.discord)) continue;
+
+  let opp=null;
+
+  for(let j=i+1;j<players.length;j++){
+   let p2=players[j];
+   if(!used.has(p2.discord)&&p2.score===p1.score&&!havePlayedBefore(p1.discord,p2.discord,past)){
+    opp=p2;break;
+   }
+  }
+
+  if(!opp){
+   for(let j=i+1;j<players.length;j++){
+    let p2=players[j];
+    if(!used.has(p2.discord)&&p2.score===p1.score-1&&!havePlayedBefore(p1.discord,p2.discord,past)){
+     opp=p2;break;
+    }
+   }
+  }
+
+  if(opp){
+   used.add(p1.discord);used.add(opp.discord);
+   await addDoc(collection(db,"matches"),{round,p1:p1.discord,p2:opp.discord,bye:false,winner:null});
+  } else {
+   used.add(p1.discord);
+   await addDoc(collection(db,"matches"),{round,p1:p1.discord,p2:null,bye:true,winner:p1.discord});
+  }
+ }
+}
+
+/* START */
 window.startTournament = async()=>{
-  if(prompt("Password")!=="robifede") return;
-
-  const snap = await getDocs(collection(db,"players"));
-  let players=[];
-  snap.forEach(d=>players.push(d.data().discord));
-
-  players.sort(()=>Math.random()-.5);
-
-  await setDoc(doc(db,"tournament","state"),{
-    started:true,
-    round:1,
-    roundStart:Date.now()
-  });
-
-  if(players.length%2){
-    await addDoc(collection(db,"matches"),{
-      round:1,p1:players.pop(),p2:null,bye:true,winner:null
-    });
-  }
-
-  for(let i=0;i<players.length;i+=2){
-    await addDoc(collection(db,"matches"),{
-      round:1,p1:players[i],p2:players[i+1],bye:false,winner:null
-    });
-  }
+ if(prompt("Password")!=="robifede")return;
+ await setDoc(doc(db,"tournament","state"),{started:true,round:1,roundStart:Date.now()});
+ await swissPairing(1);
 };
 
 /* END */
 window.endTournament = async()=>{
-  if(prompt("Password")!=="robifede") return;
-  await setDoc(doc(db,"tournament","state"),{started:false});
-  location.reload();
+ if(prompt("Password")!=="robifede")return;
+ await setDoc(doc(db,"tournament","state"),{started:false});
+ location.reload();
 };
 
-/* STEP 2B — LIVE BRACKET */
-onSnapshot(doc(db,"tournament","state"), async snap=>{
-  const state = snap.data();
-  if(!state || !state.started) return;
+/* STEP 2B LIVE */
+onSnapshot(doc(db,"tournament","state"),snap=>{
+ if(!snap.exists()||!snap.data().started)return;
+ ui.classList.add("hidden");
+ bracket.classList.remove("hidden");
+ roundNum.textContent=snap.data().round;
 
-  ui.classList.add("hidden");
-  bracket.classList.remove("hidden");
-  roundNum.textContent = state.round;
+ onSnapshot(
+  query(collection(db,"matches"),where("round","==",snap.data().round)),
+  s=>{
+   matches.innerHTML="";
+   s.forEach(d=>{
+    const m=d.data();
+    const div=document.createElement("div");
+    div.className="bg-white/10 p-3 rounded text-center";
+    div.innerHTML = m.bye
+      ? `${m.p1} (BYE)`
+      : `<b>${m.p1}</b><br>vs<br><b>${m.p2}</b>`;
+    matches.appendChild(div);
+   });
+  }
+ );
 
-  onSnapshot(
-    query(collection(db,"matches"), where("round","==",state.round)),
-    snap=>{
-      matches.innerHTML="";
-      snap.forEach(d=>{
-        const m=d.data();
-        const div=document.createElement("div");
-        div.className="bg-white/10 p-3 rounded text-center";
-
-        if(m.bye){
-          div.textContent = `${m.p1} (BYE)`;
-        } else {
-          div.innerHTML = `<b>${m.p1}</b><br>vs<br><b>${m.p2}</b>`;
-        }
-        matches.appendChild(div);
-      });
-    }
-  );
-
-  startTimer(state.roundStart);
+ startTimer(snap.data().roundStart);
 });
 
 /* TIMER */
 function startTimer(start){
-  setInterval(()=>{
-    let diff = 900000 - (Date.now()-start);
-    if(diff<0) diff=0;
-    timer.textContent =
-      Math.floor(diff/60000)+"m "+
-      Math.floor(diff%60000/1000)+"s";
-  },1000);
+ setInterval(()=>{
+  let d=900000-(Date.now()-start);
+  if(d<0)d=0;
+  timer.textContent=Math.floor(d/60000)+"m "+Math.floor(d%60000/1000)+"s";
+ },1000);
 }
 </script>
-
 </body>
 </html>
