@@ -25,68 +25,70 @@
 
 <!-- REGISTRATION UI -->
 <div id="ui" class="relative z-10 min-h-screen flex items-center justify-center">
+  <div class="bg-white/10 backdrop-blur-xl p-8 rounded-2xl w-full max-w-md">
 
-<div class="bg-white/10 backdrop-blur-xl p-8 rounded-2xl w-full max-w-md">
+    <h1 class="text-2xl font-bold text-center mb-2">🏆 Clash Royale Tournament</h1>
+    <p class="text-center mb-4">Iscritti: <span id="count">0</span></p>
 
-<h1 class="text-2xl font-bold text-center mb-2">🏆 Clash Royale Tournament</h1>
-<p class="text-center mb-4">Iscritti: <span id="count">0</span></p>
+    <input id="nickname" placeholder="Nickname"
+     class="w-full mb-3 p-3 rounded bg-black/40">
 
-<input id="nickname" placeholder="Nickname"
- class="w-full mb-3 p-3 rounded bg-black/40">
+    <input id="playerTag" placeholder="Player Tag"
+     class="w-full mb-3 p-3 rounded bg-black/40">
 
-<input id="playerTag" placeholder="Player Tag"
- class="w-full mb-3 p-3 rounded bg-black/40">
+    <input id="discordUser" placeholder="Discord username"
+     class="w-full mb-4 p-3 rounded bg-black/40">
 
-<input id="discordUser" placeholder="Discord username"
- class="w-full mb-4 p-3 rounded bg-black/40">
+    <button onclick="registerPlayer()"
+     class="w-full bg-red-600 hover:bg-red-700 p-3 font-bold rounded mb-3">
+     READY TO CLASH
+    </button>
 
-<button onclick="registerPlayer()"
- class="w-full bg-red-600 hover:bg-red-700 p-3 font-bold rounded mb-3">
- READY TO CLASH
-</button>
+    <button onclick="startTournament()"
+     class="w-full bg-red-600 hover:bg-red-700 p-3 font-bold rounded">
+     START TOURNAMENT
+    </button>
 
-<button onclick="startTournament()"
- class="w-full bg-red-600 hover:bg-red-700 p-3 font-bold rounded">
- START TOURNAMENT
-</button>
-
-</div>
+  </div>
 </div>
 
 <!-- BRACKET -->
 <div id="bracket" class="hidden relative z-10 p-6">
+  <div class="flex justify-between items-center mb-4">
+    <h2 class="text-xl font-bold">
+      Round <span id="roundNum"></span>
+    </h2>
 
-<div class="flex justify-between items-center mb-4">
-<h2 class="text-xl font-bold">
- Round <span id="roundNum"></span>
-</h2>
+    <button onclick="endTournament()"
+     class="bg-red-600 px-4 py-2 rounded font-bold">
+     END
+    </button>
+  </div>
 
-<button onclick="endTournament()"
- class="bg-red-600 px-4 py-2 rounded font-bold">
- END
-</button>
+  <p class="mb-4">⏱ Tempo round: <span id="timer"></span></p>
+  <div id="matches" class="grid md:grid-cols-2 gap-4"></div>
 </div>
 
-<p class="mb-4">⏱ Tempo round: <span id="timer"></span></p>
-
-<div id="matches" class="grid md:grid-cols-2 gap-4"></div>
-</div>
-
-<!-- FIREBASE -->
+<!-- FIREBASE + STEP 2B -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import {
- getFirestore, collection, addDoc, getDocs,
- doc, setDoc, getDoc, query, where
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs,
+  doc,
+  setDoc,
+  getDoc,
+  query,
+  where,
+  onSnapshot
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 const firebaseConfig = {
- apiKey: "AIzaSyBUjtbuQfc2drjqivgoLFEyQ9k4Un4f6fQ",
- authDomain: "allmighty-tournaments.firebaseapp.com",
- projectId: "allmighty-tournaments",
- storageBucket: "allmighty-tournaments.firebasestorage.app",
- messagingSenderId: "876830337732",
- appId: "1:876830337732:web:12509e3197a65e6350b791"
+  apiKey: "AIzaSyBUjtbuQfc2drjqivgoLFEyQ9k4Un4f6fQ",
+  authDomain: "allmighty-tournaments.firebaseapp.com",
+  projectId: "allmighty-tournaments",
 };
 
 const app = initializeApp(firebaseConfig);
@@ -96,113 +98,102 @@ setTimeout(()=>ui.classList.add("show"),1000);
 
 /* PLAYER COUNT */
 async function updateCount(){
- const snap = await getDocs(collection(db,"players"));
- count.textContent = snap.size;
+  const snap = await getDocs(collection(db,"players"));
+  count.textContent = snap.size;
 }
 updateCount();
 
 /* REGISTER */
 window.registerPlayer = async()=>{
- await addDoc(collection(db,"players"),{
-  nick:nickname.value,
-  tag:playerTag.value,
-  discord:discordUser.value,
-  createdAt:Date.now()
- });
- nickname.value=playerTag.value=discordUser.value="";
- updateCount();
+  await addDoc(collection(db,"players"),{
+    nick:nickname.value,
+    tag:playerTag.value,
+    discord:discordUser.value,
+    createdAt:Date.now(),
+    score:0
+  });
+  nickname.value=playerTag.value=discordUser.value="";
+  updateCount();
 };
 
 /* START TOURNAMENT */
 window.startTournament = async()=>{
- if(prompt("Password")!=="robifede") return;
+  if(prompt("Password")!=="robifede") return;
 
- const snap = await getDocs(collection(db,"players"));
- let players=[];
- snap.forEach(d=>players.push(d.data().discord));
+  const snap = await getDocs(collection(db,"players"));
+  let players=[];
+  snap.forEach(d=>players.push(d.data().discord));
 
- players.sort(()=>Math.random()-.5);
+  players.sort(()=>Math.random()-.5);
 
- let matches=[];
- if(players.length%2){
-  matches.push({p1:players.pop(),p2:null,bye:true});
- }
-
- for(let i=0;i<players.length;i+=2){
-  matches.push({p1:players[i],p2:players[i+1],bye:false});
- }
-
- await setDoc(doc(db,"tournament","state"),{
-  started:true,
-  round:1,
-  roundStart:Date.now()
- });
-
- for(const m of matches){
-  await addDoc(collection(db,"matches"),{
-   round:1,
-   ...m,
-   winner:null,
-   confirmP1:false,
-   confirmP2:false
+  await setDoc(doc(db,"tournament","state"),{
+    started:true,
+    round:1,
+    roundStart:Date.now()
   });
- }
 
- showBracket();
-};
-
-/* END TOURNAMENT */
-window.endTournament = async()=>{
- if(prompt("Password")!=="robifede") return;
- await setDoc(doc(db,"tournament","state"),{started:false});
- location.reload();
-};
-
-/* SHOW BRACKET */
-async function showBracket(){
- ui.classList.add("hidden");
- bracket.classList.remove("hidden");
-
- const state = (await getDoc(doc(db,"tournament","state"))).data();
- roundNum.textContent = state.round;
-
- const snap = await getDocs(
-  query(collection(db,"matches"), where("round","==",state.round))
- );
-
- matches.innerHTML="";
- snap.forEach(d=>{
-  const m=d.data();
-  const div=document.createElement("div");
-  div.className="bg-white/10 p-3 rounded";
-
-  if(m.bye){
-   div.textContent = `${m.p1} (BYE)`;
-  } else {
-   div.innerHTML = `
-    <p>${m.p1} vs ${m.p2}</p>
-    <a class="underline text-blue-400"
-     href="match.html?match=${d.id}&player=${m.p1}">
-     Apri match
-    </a>
-   `;
+  if(players.length%2){
+    await addDoc(collection(db,"matches"),{
+      round:1,p1:players.pop(),p2:null,bye:true,winner:null
+    });
   }
-  matches.appendChild(div);
- });
 
- startTimer(state.roundStart);
-}
+  for(let i=0;i<players.length;i+=2){
+    await addDoc(collection(db,"matches"),{
+      round:1,p1:players[i],p2:players[i+1],bye:false,winner:null
+    });
+  }
+};
+
+/* END */
+window.endTournament = async()=>{
+  if(prompt("Password")!=="robifede") return;
+  await setDoc(doc(db,"tournament","state"),{started:false});
+  location.reload();
+};
+
+/* STEP 2B — LIVE BRACKET */
+onSnapshot(doc(db,"tournament","state"), async snap=>{
+  const state = snap.data();
+  if(!state || !state.started) return;
+
+  ui.classList.add("hidden");
+  bracket.classList.remove("hidden");
+  roundNum.textContent = state.round;
+
+  onSnapshot(
+    query(collection(db,"matches"), where("round","==",state.round)),
+    snap=>{
+      matches.innerHTML="";
+      snap.forEach(d=>{
+        const m=d.data();
+        const div=document.createElement("div");
+        div.className="bg-white/10 p-3 rounded text-center";
+
+        if(m.bye){
+          div.textContent = `${m.p1} (BYE)`;
+        } else {
+          div.innerHTML = `<b>${m.p1}</b><br>vs<br><b>${m.p2}</b>`;
+        }
+        matches.appendChild(div);
+      });
+    }
+  );
+
+  startTimer(state.roundStart);
+});
 
 /* TIMER */
 function startTimer(start){
- setInterval(()=>{
-  let diff = 900000 - (Date.now()-start);
-  if(diff<0) diff=0;
-  timer.textContent =
-   Math.floor(diff/60000)+"m "+
-   Math.floor(diff%60000/1000)+"s";
- },1000);
+  setInterval(()=>{
+    let diff = 900000 - (Date.now()-start);
+    if(diff<0) diff=0;
+    timer.textContent =
+      Math.floor(diff/60000)+"m "+
+      Math.floor(diff%60000/1000)+"s";
+  },1000);
 }
 </script>
+
 </body>
 </html>
