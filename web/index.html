@@ -62,8 +62,7 @@ START TOURNAMENT
 <div id="rankingView" class="hidden mt-6"></div>
 
 <div class="mt-6 text-center">
-<button id="nextRoundBtn"
- class="hidden bg-green-600 px-6 py-3 rounded font-bold">
+<button id="nextRoundBtn" class="hidden bg-green-600 px-6 py-3 rounded font-bold">
 NEXT ROUND
 </button>
 </div>
@@ -75,9 +74,10 @@ NEXT ROUND
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import {
  getFirestore, collection, addDoc, getDocs,
- doc, setDoc, getDoc, query, where, onSnapshot
+ doc, setDoc, query, where, onSnapshot
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
+/* FIREBASE CONFIG */
 const firebaseConfig = {
  apiKey:"AIzaSyBUjtbuQfc2drjqivgoLFEyQ9k4Un4f6fQ",
  authDomain:"allmighty-tournaments.firebaseapp.com",
@@ -86,14 +86,13 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+
 setTimeout(()=>ui.classList.add("show"),1000);
 
-/* COUNT */
-async function updateCount(){
- const snap = await getDocs(collection(db,"players"));
- count.textContent = snap.size;
-}
-updateCount();
+/* COUNT LIVE */
+onSnapshot(collection(db,"players"),snap=>{
+ count.textContent=snap.size;
+});
 
 /* REGISTER */
 window.registerPlayer = async()=>{
@@ -106,12 +105,11 @@ window.registerPlayer = async()=>{
   createdAt:Date.now()
  });
  nickname.value=playerTag.value=discordUser.value="";
- updateCount();
 };
 
 /* START */
 window.startTournament = async()=>{
- if(prompt("Password")!=="robifede") return;
+ if(prompt("Password")!=="robifede")return;
  await setDoc(doc(db,"tournament","state"),{
   started:true,
   round:1,
@@ -121,18 +119,18 @@ window.startTournament = async()=>{
 
 /* END */
 window.endTournament = async()=>{
- if(prompt("Password")!=="robifede") return;
+ if(prompt("Password")!=="robifede")return;
  await setDoc(doc(db,"tournament","state"),{started:false});
  location.reload();
 };
 
-/* LIVE VIEW */
+/* LIVE TOURNAMENT */
 onSnapshot(doc(db,"tournament","state"),snap=>{
- if(!snap.exists() || !snap.data().started) return;
+ if(!snap.exists()||!snap.data().started)return;
 
  ui.classList.add("hidden");
  bracket.classList.remove("hidden");
- roundNum.textContent = snap.data().round;
+ roundNum.textContent=snap.data().round;
 
  onSnapshot(
   query(collection(db,"matches"),where("round","==",snap.data().round)),
@@ -146,9 +144,9 @@ onSnapshot(doc(db,"tournament","state"),snap=>{
 
     const div=document.createElement("div");
     div.className="bg-white/10 p-3 rounded text-center";
-    div.innerHTML = m.p2
-      ? `<b>${m.p1}</b><br>vs<br><b>${m.p2}</b>`
-      : `${m.p1} (BYE)`;
+    div.innerHTML=m.p2
+     ? `<b>${m.p1}</b><br>vs<br><b>${m.p2}</b>`
+     : `${m.p1} (BYE)`;
     matches.appendChild(div);
    });
 
@@ -160,23 +158,36 @@ onSnapshot(doc(db,"tournament","state"),snap=>{
 });
 
 /* VIEW SWITCH */
-window.showPairings=()=>{matches.classList.remove("hidden");rankingView.classList.add("hidden")};
+window.showPairings=()=>{
+ matches.classList.remove("hidden");
+ rankingView.classList.add("hidden");
+};
 
-window.showRanking=async()=>{
- matches.classList.add("hidden"); rankingView.classList.remove("hidden");
- const snap=await getDocs(collection(db,"players"));
- let p=[]; snap.forEach(d=>p.push(d.data()));
- p.sort((a,b)=>b.score-a.score||b.ranking-a.ranking);
+window.showRanking=()=>{
+ matches.classList.add("hidden");
+ rankingView.classList.remove("hidden");
+};
 
- rankingView.innerHTML=`<h3 class="text-xl font-bold mb-4 text-center">🏅 Ranking</h3>`;
- p.forEach((x,i)=>{
+/* 🔥 RANKING LIVE 🔥 */
+onSnapshot(collection(db,"players"),snap=>{
+ let players=[];
+ snap.forEach(d=>players.push(d.data()));
+
+ players.sort((a,b)=>{
+  if(b.score!==a.score)return b.score-a.score;
+  return b.ranking-a.ranking;
+ });
+
+ rankingView.innerHTML=`<h3 class="text-xl font-bold mb-4 text-center">🏅 Ranking Live</h3>`;
+
+ players.forEach((p,i)=>{
   rankingView.innerHTML+=`
   <div class="flex justify-between bg-white/10 p-3 rounded mb-2">
-   <span>#${i+1} ${x.nick}</span>
-   <span>Score: ${x.score}</span>
+   <span>#${i+1} ${p.nick}</span>
+   <span>Score: ${p.score}</span>
   </div>`;
  });
-};
+});
 
 /* TIMER */
 function startTimer(start){
@@ -187,5 +198,6 @@ function startTimer(start){
  },1000);
 }
 </script>
+
 </body>
 </html>
