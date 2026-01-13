@@ -63,7 +63,6 @@ START TOURNAMENT
 
 <div class="mt-6 text-center">
 <button id="nextRoundBtn"
- onclick="nextRound()"
  class="hidden bg-green-600 px-6 py-3 rounded font-bold">
 NEXT ROUND
 </button>
@@ -110,52 +109,6 @@ window.registerPlayer = async()=>{
  updateCount();
 };
 
-/* REMATCH CHECK */
-function havePlayedBefore(a,b,matches){
- return matches.some(m=>
-  (m.p1===a && m.p2===b)||(m.p1===b && m.p2===a)
- );
-}
-
-/* SWISS PAIRING */
-async function swissPairing(round){
- const pSnap = await getDocs(collection(db,"players"));
- const mSnap = await getDocs(collection(db,"matches"));
- let players=[], past=[];
- pSnap.forEach(d=>players.push({id:d.id,...d.data()}));
- mSnap.forEach(d=>past.push(d.data()));
-
- players.sort((a,b)=>{
-  if(b.score!==a.score) return b.score-a.score;
-  return b.ranking-a.ranking;
- });
-
- let used=new Set();
-
- for(let i=0;i<players.length;i++){
-  let p1=players[i];
-  if(used.has(p1.discord)) continue;
-
-  let opp=null;
-  for(let j=i+1;j<players.length;j++){
-   let p2=players[j];
-   if(!used.has(p2.discord) &&
-      (p2.score===p1.score || p2.score===p1.score-1) &&
-      !havePlayedBefore(p1.discord,p2.discord,past)){
-     opp=p2; break;
-   }
-  }
-
-  if(opp){
-   used.add(p1.discord); used.add(opp.discord);
-   await addDoc(collection(db,"matches"),{round,p1:p1.discord,p2:opp.discord,winner:null});
-  } else {
-   used.add(p1.discord);
-   await addDoc(collection(db,"matches"),{round,p1:p1.discord,p2:null,winner:p1.discord});
-  }
- }
-}
-
 /* START */
 window.startTournament = async()=>{
  if(prompt("Password")!=="robifede") return;
@@ -164,24 +117,6 @@ window.startTournament = async()=>{
   round:1,
   roundStart:Date.now()
  });
- await swissPairing(1);
-};
-
-/* NEXT ROUND */
-window.nextRound = async()=>{
- if(prompt("Password")!=="robifede") return;
-
- const stateRef = doc(db,"tournament","state");
- const stateSnap = await getDoc(stateRef);
- const next = stateSnap.data().round + 1;
-
- await setDoc(stateRef,{
-  started:true,
-  round:next,
-  roundStart:Date.now()
- });
-
- await swissPairing(next);
 };
 
 /* END */
@@ -226,15 +161,20 @@ onSnapshot(doc(db,"tournament","state"),snap=>{
 
 /* VIEW SWITCH */
 window.showPairings=()=>{matches.classList.remove("hidden");rankingView.classList.add("hidden")};
+
 window.showRanking=async()=>{
  matches.classList.add("hidden"); rankingView.classList.remove("hidden");
  const snap=await getDocs(collection(db,"players"));
  let p=[]; snap.forEach(d=>p.push(d.data()));
  p.sort((a,b)=>b.score-a.score||b.ranking-a.ranking);
+
  rankingView.innerHTML=`<h3 class="text-xl font-bold mb-4 text-center">🏅 Ranking</h3>`;
  p.forEach((x,i)=>{
-  rankingView.innerHTML+=`<div class="flex justify-between bg-white/10 p-3 rounded mb-2">
-  <span>#${i+1} ${x.nick}</span><span>Score: ${x.score}</span></div>`;
+  rankingView.innerHTML+=`
+  <div class="flex justify-between bg-white/10 p-3 rounded mb-2">
+   <span>#${i+1} ${x.nick}</span>
+   <span>Score: ${x.score}</span>
+  </div>`;
  });
 };
 
