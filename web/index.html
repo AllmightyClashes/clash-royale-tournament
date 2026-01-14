@@ -29,15 +29,17 @@
     <input id="nickname" placeholder="Nickname"
      class="w-full mb-3 p-3 rounded bg-black/40">
 
-    <input id="playerTag" placeholder="Player Tag"
-     class="w-full mb-3 p-3 rounded bg-black/40">
-
     <input id="discordUser" placeholder="Discord username"
      class="w-full mb-4 p-3 rounded bg-black/40">
 
     <button onclick="registerPlayer()"
-     class="w-full bg-red-600 p-3 font-bold rounded">
+     class="w-full bg-red-600 p-3 font-bold rounded mb-3">
      READY TO CLASH
+    </button>
+
+    <button onclick="startTournament()"
+     class="w-full bg-green-600 p-3 font-bold rounded">
+     START TOURNAMENT
     </button>
 
   </div>
@@ -71,7 +73,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import {
  getFirestore, doc, collection, addDoc, getDocs,
- query, where, onSnapshot
+ setDoc, query, where, onSnapshot
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -90,7 +92,7 @@ setTimeout(()=>{
 
 /* REGISTER PLAYER — BLOCCO DOPPIA REGISTRAZIONE */
 window.registerPlayer = async()=>{
- if(!nickname.value || !discordUser.value || !playerTag.value){
+ if(!nickname.value || !discordUser.value){
   alert("Compila tutti i campi");
   return;
  }
@@ -100,10 +102,7 @@ window.registerPlayer = async()=>{
 
  snap.forEach(d=>{
   const p = d.data();
-  if(
-    p.discord.toLowerCase() === discordUser.value.toLowerCase() ||
-    p.tag.toLowerCase() === playerTag.value.toLowerCase()
-  ){
+  if(p.discord.toLowerCase() === discordUser.value.toLowerCase()){
     alreadyRegistered = true;
   }
  });
@@ -115,7 +114,6 @@ window.registerPlayer = async()=>{
 
  await addDoc(collection(db,"players"),{
   nick:nickname.value,
-  tag:playerTag.value,
   discord:discordUser.value,
   score:0,
   ranking:1000,
@@ -123,8 +121,23 @@ window.registerPlayer = async()=>{
   createdAt:Date.now()
  });
 
- nickname.value=playerTag.value=discordUser.value="";
+ nickname.value = discordUser.value = "";
  alert("✅ Registrazione completata!");
+};
+
+/* START TOURNAMENT */
+window.startTournament = async()=>{
+ if(prompt("Password") !== "robifede") return;
+
+ await setDoc(doc(db,"tournament","state"),{
+  started:true,
+  ended:false,
+  round:1,
+  roundStart:Date.now(),
+  roundDuration:900000
+ });
+
+ alert("🔥 Torneo avviato!");
 };
 
 /* TOURNAMENT STATE */
