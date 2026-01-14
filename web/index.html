@@ -7,26 +7,36 @@
 <script src="https://cdn.tailwindcss.com"></script>
 
 <style>
-#ui,#registerBox{opacity:0;transform:scale(.96);transition:.6s}
-#ui.show,#registerBox.show{opacity:1;transform:scale(1)}
+#ui,#registerBox{
+  opacity:0;
+  transform:scale(.96);
+  transition:.6s;
+}
+#ui.show,#registerBox.show{
+  opacity:1;
+  transform:scale(1);
+}
 </style>
 </head>
 
 <body class="relative min-h-screen text-white overflow-hidden">
 
-<video autoplay muted loop playsinline class="absolute inset-0 w-full h-full object-cover">
+<!-- VIDEO -->
+<video autoplay muted loop playsinline
+ class="absolute inset-0 w-full h-full object-cover">
   <source src="logo-animato.mp4" type="video/mp4">
 </video>
 <div class="absolute inset-0 bg-black/70"></div>
 
-<!-- REGISTRATION -->
-<div id="registerBox" class="relative z-10 min-h-screen flex items-center justify-center">
+<!-- REGISTRATION (CENTRATA) -->
+<div id="registerBox"
+ class="absolute inset-0 z-10 flex items-center justify-center">
+
   <div class="bg-white/10 backdrop-blur-xl p-8 rounded-2xl w-full max-w-md">
 
     <h1 class="text-2xl font-bold text-center mb-1">🏆 Iscrizione Torneo</h1>
     <p class="text-center mb-2">Inserisci i tuoi dati</p>
 
-    <!-- PLAYER COUNT -->
     <p class="text-center mb-4 text-sm opacity-90">
       👥 Giocatori registrati: <span id="playerCount">0</span>
     </p>
@@ -50,30 +60,39 @@
   </div>
 </div>
 
-<!-- UI -->
-<div id="ui" class="relative z-10 p-6 max-w-4xl mx-auto hidden">
+<!-- UI TORNEO -->
+<div id="ui"
+ class="relative z-10 p-6 max-w-4xl mx-auto hidden">
 
-<div id="header" class="flex justify-between items-center mb-4 hidden">
-  <h2 class="text-xl font-bold">
-    Round <span id="roundNum"></span>
-  </h2>
+  <div id="header"
+   class="flex justify-between items-center mb-4 hidden">
 
-  <div class="flex gap-2">
-    <button onclick="showPairings()" class="bg-white/20 px-4 py-2 rounded">PAIRINGS</button>
-    <button onclick="showRanking()" class="bg-white/20 px-4 py-2 rounded">RANKING</button>
+    <h2 class="text-xl font-bold">
+      Round <span id="roundNum"></span>
+    </h2>
+
+    <div class="flex gap-2">
+      <button onclick="showPairings()" class="bg-white/20 px-4 py-2 rounded">
+        PAIRINGS
+      </button>
+      <button onclick="showRanking()" class="bg-white/20 px-4 py-2 rounded">
+        RANKING
+      </button>
+    </div>
   </div>
+
+  <p id="timerBox"
+   class="text-center text-2xl font-bold mb-6 hidden">
+    ⏱ <span id="timer"></span>
+  </p>
+
+  <div id="matches" class="grid md:grid-cols-2 gap-4 hidden"></div>
+  <div id="rankingView" class="hidden mt-6"></div>
+  <div id="finalRanking" class="hidden mt-10"></div>
+
 </div>
 
-<p id="timerBox" class="text-center text-2xl font-bold mb-6 hidden">
- ⏱ <span id="timer"></span>
-</p>
-
-<div id="matches" class="grid md:grid-cols-2 gap-4 hidden"></div>
-<div id="rankingView" class="hidden mt-6"></div>
-<div id="finalRanking" class="hidden mt-10"></div>
-
-</div>
-
+<!-- FIREBASE -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import {
@@ -90,17 +109,15 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-setTimeout(()=>{
- registerBox.classList.add("show");
- ui.classList.add("show");
-},500);
+/* ANIMAZIONE SOLO REGISTRAZIONE */
+setTimeout(()=> registerBox.classList.add("show"), 300);
 
-/* 🔴 LIVE PLAYER COUNT */
+/* LIVE PLAYER COUNT */
 onSnapshot(collection(db,"players"), snap=>{
  playerCount.textContent = snap.size;
 });
 
-/* REGISTER PLAYER — BLOCCO DOPPIA REGISTRAZIONE */
+/* REGISTER */
 window.registerPlayer = async()=>{
  if(!nickname.value || !discordUser.value){
   alert("Compila tutti i campi");
@@ -108,17 +125,14 @@ window.registerPlayer = async()=>{
  }
 
  const snap = await getDocs(collection(db,"players"));
- let alreadyRegistered = false;
-
+ let exists=false;
  snap.forEach(d=>{
-  const p = d.data();
-  if(p.discord.toLowerCase() === discordUser.value.toLowerCase()){
-    alreadyRegistered = true;
-  }
+  if(d.data().discord.toLowerCase() === discordUser.value.toLowerCase())
+   exists=true;
  });
 
- if(alreadyRegistered){
-  alert("⚠️ Sei già registrato al torneo");
+ if(exists){
+  alert("⚠️ Sei già registrato");
   return;
  }
 
@@ -137,7 +151,7 @@ window.registerPlayer = async()=>{
 
 /* START TOURNAMENT */
 window.startTournament = async()=>{
- if(prompt("Password") !== "robifede") return;
+ if(prompt("Password")!=="robifede") return;
 
  await setDoc(doc(db,"tournament","state"),{
   started:true,
@@ -151,30 +165,22 @@ window.startTournament = async()=>{
 };
 
 /* TOURNAMENT STATE */
-onSnapshot(doc(db,"tournament","state"),snap=>{
+onSnapshot(doc(db,"tournament","state"), snap=>{
  if(!snap.exists()) return;
+ const d = snap.data();
 
- const data = snap.data();
- ui.classList.remove("hidden");
-
- if(data.started){
+ if(d.started){
   registerBox.classList.add("hidden");
- }
+  ui.classList.remove("hidden");
+  ui.classList.add("show");
 
- if(!data.started && data.ended){
-  showFinalRanking();
-  return;
- }
-
- if(data.started){
   header.classList.remove("hidden");
   timerBox.classList.remove("hidden");
   matches.classList.remove("hidden");
-  finalRanking.classList.add("hidden");
 
-  roundNum.textContent = data.round;
-  listenMatches(data.round);
-  startTimer(data.roundStart, data.roundDuration);
+  roundNum.textContent = d.round;
+  listenMatches(d.round);
+  startTimer(d.roundStart, d.roundDuration);
  }
 });
 
@@ -197,59 +203,6 @@ function listenMatches(round){
  );
 }
 
-/* FINAL RANKING */
-async function showFinalRanking(){
- header.classList.add("hidden");
- timerBox.classList.add("hidden");
- matches.classList.add("hidden");
- rankingView.classList.add("hidden");
- finalRanking.classList.remove("hidden");
-
- const snap = await getDocs(collection(db,"players"));
- let players=[];
- snap.forEach(d=>players.push(d.data()));
-
- players.sort((a,b)=>b.score-a.score||b.ranking-a.ranking);
-
- finalRanking.innerHTML =
-  `<h2 class="text-3xl font-bold text-center mb-6">🏆 Classifica Finale</h2>`;
-
- players.forEach((p,i)=>{
-  finalRanking.innerHTML+=`
-   <div class="flex justify-between bg-white/10 p-4 rounded mb-2 text-lg">
-    <span>#${i+1} ${p.nick}</span>
-    <span>${p.score} pts</span>
-   </div>`;
- });
-}
-
-/* VIEW SWITCH */
-window.showRanking = async()=>{
- matches.classList.add("hidden");
- rankingView.classList.remove("hidden");
-
- const snap = await getDocs(collection(db,"players"));
- let players=[];
- snap.forEach(d=>players.push(d.data()));
- players.sort((a,b)=>b.score-a.score||b.ranking-a.ranking);
-
- rankingView.innerHTML =
-  `<h3 class="text-xl font-bold mb-4 text-center">🏅 Ranking</h3>`;
-
- players.forEach((p,i)=>{
-  rankingView.innerHTML+=`
-   <div class="flex justify-between bg-white/10 p-3 rounded mb-2">
-    <span>#${i+1} ${p.nick}</span>
-    <span>${p.score} pts</span>
-   </div>`;
- });
-};
-
-window.showPairings=()=>{
- matches.classList.remove("hidden");
- rankingView.classList.add("hidden");
-};
-
 /* TIMER */
 let timerInt;
 function startTimer(start,duration){
@@ -257,7 +210,7 @@ function startTimer(start,duration){
  timerInt=setInterval(()=>{
   let d=duration-(Date.now()-start);
   if(d<0)d=0;
-  timer.textContent=
+  timer.textContent =
    Math.floor(d/60000)+"m "+
    Math.floor(d%60000/1000)+"s";
  },1000);
