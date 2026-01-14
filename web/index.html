@@ -7,8 +7,8 @@
 <script src="https://cdn.tailwindcss.com"></script>
 
 <style>
-#ui{opacity:0;transform:scale(.96);transition:.6s}
-#ui.show{opacity:1;transform:scale(1)}
+#ui,#registerBox{opacity:0;transform:scale(.96);transition:.6s}
+#ui.show,#registerBox.show{opacity:1;transform:scale(1)}
 </style>
 </head>
 
@@ -19,10 +19,33 @@
 </video>
 <div class="absolute inset-0 bg-black/70"></div>
 
+<!-- REGISTRATION -->
+<div id="registerBox" class="relative z-10 min-h-screen flex items-center justify-center">
+  <div class="bg-white/10 backdrop-blur-xl p-8 rounded-2xl w-full max-w-md">
+
+    <h1 class="text-2xl font-bold text-center mb-2">🏆 Iscrizione Torneo</h1>
+    <p class="text-center mb-4">Inserisci i tuoi dati</p>
+
+    <input id="nickname" placeholder="Nickname"
+     class="w-full mb-3 p-3 rounded bg-black/40">
+
+    <input id="playerTag" placeholder="Player Tag"
+     class="w-full mb-3 p-3 rounded bg-black/40">
+
+    <input id="discordUser" placeholder="Discord username"
+     class="w-full mb-4 p-3 rounded bg-black/40">
+
+    <button onclick="registerPlayer()"
+     class="w-full bg-red-600 p-3 font-bold rounded">
+     READY TO CLASH
+    </button>
+
+  </div>
+</div>
+
 <!-- UI -->
 <div id="ui" class="relative z-10 p-6 max-w-4xl mx-auto hidden">
 
-<!-- HEADER -->
 <div id="header" class="flex justify-between items-center mb-4 hidden">
   <h2 class="text-xl font-bold">
     Round <span id="roundNum"></span>
@@ -34,15 +57,12 @@
   </div>
 </div>
 
-<!-- TIMER -->
 <p id="timerBox" class="text-center text-2xl font-bold mb-6 hidden">
  ⏱ <span id="timer"></span>
 </p>
 
 <div id="matches" class="grid md:grid-cols-2 gap-4 hidden"></div>
 <div id="rankingView" class="hidden mt-6"></div>
-
-<!-- FINAL RANKING -->
 <div id="finalRanking" class="hidden mt-10"></div>
 
 </div>
@@ -50,7 +70,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import {
- getFirestore, doc, collection, getDocs,
+ getFirestore, doc, collection, addDoc, getDocs,
  query, where, onSnapshot
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
@@ -63,7 +83,49 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-setTimeout(()=>ui.classList.add("show"),500);
+setTimeout(()=>{
+ registerBox.classList.add("show");
+ ui.classList.add("show");
+},500);
+
+/* REGISTER PLAYER — BLOCCO DOPPIA REGISTRAZIONE */
+window.registerPlayer = async()=>{
+ if(!nickname.value || !discordUser.value || !playerTag.value){
+  alert("Compila tutti i campi");
+  return;
+ }
+
+ const snap = await getDocs(collection(db,"players"));
+ let alreadyRegistered = false;
+
+ snap.forEach(d=>{
+  const p = d.data();
+  if(
+    p.discord.toLowerCase() === discordUser.value.toLowerCase() ||
+    p.tag.toLowerCase() === playerTag.value.toLowerCase()
+  ){
+    alreadyRegistered = true;
+  }
+ });
+
+ if(alreadyRegistered){
+  alert("⚠️ Sei già registrato al torneo");
+  return;
+ }
+
+ await addDoc(collection(db,"players"),{
+  nick:nickname.value,
+  tag:playerTag.value,
+  discord:discordUser.value,
+  score:0,
+  ranking:1000,
+  dropped:false,
+  createdAt:Date.now()
+ });
+
+ nickname.value=playerTag.value=discordUser.value="";
+ alert("✅ Registrazione completata!");
+};
 
 /* TOURNAMENT STATE */
 onSnapshot(doc(db,"tournament","state"),snap=>{
@@ -72,13 +134,15 @@ onSnapshot(doc(db,"tournament","state"),snap=>{
  const data = snap.data();
  ui.classList.remove("hidden");
 
- // TORNEO FINITO
+ if(data.started){
+  registerBox.classList.add("hidden");
+ }
+
  if(!data.started && data.ended){
   showFinalRanking();
   return;
  }
 
- // TORNEO ATTIVO
  if(data.started){
   header.classList.remove("hidden");
   timerBox.classList.remove("hidden");
@@ -124,9 +188,8 @@ async function showFinalRanking(){
 
  players.sort((a,b)=>b.score-a.score||b.ranking-a.ranking);
 
- finalRanking.innerHTML = `
-  <h2 class="text-3xl font-bold text-center mb-6">🏆 Classifica Finale</h2>
- `;
+ finalRanking.innerHTML =
+  `<h2 class="text-3xl font-bold text-center mb-6">🏆 Classifica Finale</h2>`;
 
  players.forEach((p,i)=>{
   finalRanking.innerHTML+=`
