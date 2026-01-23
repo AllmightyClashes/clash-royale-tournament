@@ -5,20 +5,18 @@
 <title>Allmighty Clashes Tournament</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.tailwindcss.com"></script>
-
 <style>
-#ui,#registerBox{
+#ui,#finalRanking,#rankingView{
   opacity:0;
   transform:scale(.96);
   transition:.6s;
 }
-#ui.show,#registerBox.show{
+#ui.show,#finalRanking.show,#rankingView.show{
   opacity:1;
   transform:scale(1);
 }
 </style>
 </head>
-
 <body class="relative min-h-screen text-white overflow-hidden">
 
 <!-- VIDEO -->
@@ -28,71 +26,40 @@
 </video>
 <div class="absolute inset-0 bg-black/70"></div>
 
-<!-- REGISTRATION (CENTRATA) -->
-<div id="registerBox"
- class="absolute inset-0 z-10 flex items-center justify-center">
-
-  <div class="bg-white/10 backdrop-blur-xl p-8 rounded-2xl w-full max-w-md">
-
-    <h1 class="text-2xl font-bold text-center mb-1">🏆 Tournament Registration 🏆</h1>
-    <p class="text-center mb-2">enter your details</p>
-
-    <p class="text-center mb-4 text-sm opacity-90">
-      👥 registered players: <span id="playerCount">0</span>
-    </p>
-
-    <input id="nickname" placeholder="Nickname"
-     class="w-full mb-3 p-3 rounded bg-black/40">
-
-    <input id="discordUser" placeholder="Discord username"
-     class="w-full mb-4 p-3 rounded bg-black/40">
-
-    <button onclick="registerPlayer()"
-     class="w-full bg-red-600 p-3 font-bold rounded mb-3">
-     ⚔ READY TO CLASH ⚔
-    </button>
-
-  </div>
+<!-- MESSAGE INIZIALE -->
+<div id="introBox" class="absolute inset-0 z-10 flex items-center justify-center">
+  <h1 class="text-4xl font-bold text-center">⚔ Allmighty Clashes are coming ⚔</h1>
 </div>
 
 <!-- UI TORNEO -->
-<div id="ui"
- class="relative z-10 p-6 max-w-4xl mx-auto hidden">
+<div id="ui" class="relative z-10 p-6 max-w-4xl mx-auto hidden">
 
-  <div id="header"
-   class="flex justify-between items-center mb-4 hidden">
-
+  <div id="header" class="flex justify-between items-center mb-4">
     <h2 class="text-xl font-bold">
       Round <span id="roundNum"></span>
     </h2>
-
     <div class="flex gap-2">
-      <button onclick="showPairings()" class="bg-white/20 px-4 py-2 rounded">
-        PAIRINGS
-      </button>
       <button onclick="showRanking()" class="bg-white/20 px-4 py-2 rounded">
         RANKING
       </button>
     </div>
   </div>
 
-  <p id="timerBox"
-   class="text-center text-2xl font-bold mb-6 hidden">
+  <p id="timerBox" class="text-center text-2xl font-bold mb-6">
     ⏱ <span id="timer"></span>
   </p>
 
-  <div id="matches" class="grid md:grid-cols-2 gap-4 hidden"></div>
+  <div id="matches" class="grid md:grid-cols-2 gap-4"></div>
   <div id="rankingView" class="hidden mt-6"></div>
   <div id="finalRanking" class="hidden mt-10"></div>
 
 </div>
 
-<!-- FIREBASE -->
+<!-- FIREBASE + LOGICA -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import {
- getFirestore, doc, collection, addDoc, getDocs,
- setDoc, query, where, onSnapshot
+ getFirestore, doc, collection, getDocs, onSnapshot, query, where, writeBatch
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -104,102 +71,149 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-/* ANIMAZIONE SOLO REGISTRAZIONE */
-setTimeout(()=> registerBox.classList.add("show"), 300);
+// Mostra intro iniziale
+setTimeout(()=> introBox.classList.add("show"), 300);
 
-/* LIVE PLAYER COUNT */
-onSnapshot(collection(db,"players"), snap=>{
- playerCount.textContent = snap.size;
-});
+// ---------- STATO TORNEO ----------
+onSnapshot(doc(db,"tournament","state"), async snap=>{
+  if(!snap.exists()) return;
+  const d = snap.data();
 
-/* REGISTER */
-window.registerPlayer = async()=>{
- if(!nickname.value || !discordUser.value){
-  alert("Compila tutti i campi");
-  return;
- }
+  if(d.started){
+    introBox.classList.add("hidden");
+    ui.classList.remove("hidden");
+    ui.classList.add("show");
 
- const snap = await getDocs(collection(db,"players"));
- let exists=false;
- snap.forEach(d=>{
-  if(d.data().discord.toLowerCase() === discordUser.value.toLowerCase())
-   exists=true;
- });
+    roundNum.textContent = d.round;
+    matches.innerHTML = "";
+    rankingView.classList.add("hidden");
+    finalRanking.classList.add("hidden");
 
- if(exists){
-  alert("⚠️ Sei già registrato");
-  return;
- }
+    listenMatches(d.round);
+    startTimer(d.roundStart, d.roundDuration);
 
- await addDoc(collection(db,"players"),{
-  nick:nickname.value,
-  discord:discordUser.value,
-  score:0,
-  ranking:1000,
-  dropped:false,
-  createdAt:Date.now()
- });
+  } else if(d.ended){
+    // Torneo concluso → mostra final ranking
+    introBox.classList.add("hidden");
+    ui.classList.remove("hidden");
+    ui.classList.add("show");
 
- nickname.value = discordUser.value = "";
- alert("✅ Registrazione completata!");
-};
+    roundNum.textContent = d.round;
+    matches.innerHTML = "";
+    rankingView.classList.add("hidden");
+    finalRanking.classList.remove("hidden");
+    finalRanking.classList.add("show");
 
-/* TOURNAMENT STATE */
-onSnapshot(doc(db,"tournament","state"), snap=>{
- if(!snap.exists()) return;
- const d = snap.data();
+    const playersSnap = await getDocs(collection(db,"players"));
+    let players=[];
+    playersSnap.forEach(doc=>players.push(doc.data()));
+    players.sort((a,b)=> (b.score??0)-(a.score??0));
 
- if(d.started){
-  registerBox.classList.add("hidden");
-  ui.classList.remove("hidden");
-  ui.classList.add("show");
+    finalRanking.innerHTML="<h2 class='text-xl font-bold mb-2'>Classifica finale</h2>";
+    players.forEach((p,i)=>{
+      const div=document.createElement("div");
+      div.className="bg-white/10 p-2 rounded mb-1 flex justify-between";
+      div.innerHTML=`<span>${i+1}. ${p.nick}</span><span>Score: ${p.score??0}</span>`;
+      finalRanking.appendChild(div);
+    });
 
-  header.classList.remove("hidden");
-  timerBox.classList.remove("hidden");
-  matches.classList.remove("hidden");
+    // Esporta su GitHub
+    exportFinalRankingToGitHub(players);
 
-  roundNum.textContent = d.round;
-  listenMatches(d.round);
-  startTimer(d.roundStart, d.roundDuration);
- }
-});
+    // Reset automatico dopo 5 minuti
+    setTimeout(async ()=>{
+      const batch = writeBatch(db);
+      playersSnap.forEach(doc=>batch.update(doc.ref,{score:0,dropped:false}));
+      await batch.commit();
 
-/* MATCHES */
-function listenMatches(round){
- onSnapshot(
-  query(collection(db,"matches"), where("round","==",round)),
-  s=>{
-   matches.innerHTML="";
-   s.forEach(d=>{
-    const m=d.data();
-    const div=document.createElement("div");
-    div.className="bg-white/10 p-3 rounded text-center";
-    div.innerHTML = m.p2
-      ? `<b>${m.p1}</b><br>vs<br><b>${m.p2}</b>`
-      : `${m.p1} (BYE)`;
-    matches.appendChild(div);
-   });
+      const matchesSnap = await getDocs(collection(db,"matches"));
+      const batch2 = writeBatch(db);
+      matchesSnap.forEach(doc=>batch2.delete(doc.ref));
+      await batch2.commit();
+      console.log("✅ Reset torneo completato");
+    }, 5*60*1000);
   }
- );
+});
+
+// ---------- MATCHES ----------
+function listenMatches(round){
+  onSnapshot(
+    query(collection(db,"matches"), where("round","==",round)),
+    s=>{
+      matches.innerHTML="";
+      s.forEach(d=>{
+        const m=d.data();
+        const div=document.createElement("div");
+        div.className="bg-white/10 p-3 rounded text-center";
+        div.innerHTML = m.p2
+          ? `<b>${m.p1}</b><br>vs<br><b>${m.p2}</b>`
+          : `${m.p1} (BYE)`;
+        matches.appendChild(div);
+      });
+    }
+  );
 }
 
-/* TIMER */
+// ---------- TIMER ----------
 let timerInt;
 function startTimer(start,duration){
- clearInterval(timerInt);
- timerInt=setInterval(()=>{
-  let d=duration-(Date.now()-start);
-  if(d<0)d=0;
-  timer.textContent =
-   Math.floor(d/60000)+"m "+
-   Math.floor(d%60000/1000)+"s";
- },1000);
+  clearInterval(timerInt);
+  timerInt=setInterval(()=>{
+    let d=duration-(Date.now()-start);
+    if(d<0)d=0;
+    timer.textContent = Math.floor(d/60000)+"m "+Math.floor(d%60000/1000)+"s";
+  },1000);
 }
+
+// ---------- MOSTRA CLASSIFICA LIVE ----------
+function showRanking(){
+  rankingView.innerHTML="";
+  rankingView.classList.remove("hidden");
+  finalRanking.classList.add("hidden");
+
+  getDocs(collection(db,"players")).then(snap=>{
+    let players=[];
+    snap.forEach(doc=>{
+      const p = doc.data();
+      if(!p.dropped) players.push(p);
+    });
+
+    players.sort((a,b)=> (b.score??0)-(a.score??0));
+
+    players.forEach((p,i)=>{
+      const div = document.createElement("div");
+      div.className="bg-white/10 p-2 rounded mb-1 flex justify-between";
+      div.innerHTML=`<span>${i+1}. ${p.nick}</span><span>Score: ${p.score??0}</span>`;
+      rankingView.appendChild(div);
+    });
+  });
+}
+
+// ---------- EXPORT SU GITHUB ----------
+async function exportFinalRankingToGitHub(players){
+  const content = players.map((p,i)=>`${i+1}. ${p.nick} - Score: ${p.score}`).join("\n");
+  const body = `# Classifica finale\n\n${content}\n\n(Visibile per 5 minuti)`;
+
+  const token = "YOUR_GITHUB_TOKEN"; // inserisci qui il tuo token
+  const repo = "user/repo"; // es. user/repo
+  const path = "latest.md";
+  const message = "Final ranking tournament";
+
+  await fetch(`https://api.github.com/repos/${repo}/contents/${path}`,{
+    method:"PUT",
+    headers:{
+      Authorization:`token ${token}`,
+      "Content-Type":"application/json"
+    },
+    body:JSON.stringify({
+      message,
+      content:btoa(unescape(encodeURIComponent(body))),
+      branch:"main"
+    })
+  });
+}
+
 </script>
 
 </body>
 </html>
-
-
-
-
