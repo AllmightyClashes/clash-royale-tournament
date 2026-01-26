@@ -90,8 +90,8 @@ onSnapshot(doc(db,"tournament","state"), async snap => {
     title.textContent = "Tournament ended";
     stopTimer();
     matches.innerHTML = "";
-    await showFinalRanking();
-    return; // esci subito
+    await showFinalRanking(); // Mostra subito la classifica finale
+    return;
   }
 
   // Torneo in corso
@@ -154,27 +154,38 @@ async function showFinalRanking(){
   ranking.innerHTML = "<h3 class='text-lg font-bold mb-2'>Final ranking</h3>";
   ranking.classList.remove("hidden");
 
-  const snap = await getDocs(
-    query(
-      collection(db,"tournament_logs"),
-      orderBy("endedAt","desc"),
-      limit(1)
-    )
-  );
+  try {
+    const snap = await getDocs(
+      query(
+        collection(db,"tournament_logs"),
+        orderBy("endedAt","desc"),
+        limit(1)
+      )
+    );
 
-  if (snap.empty) {
-    ranking.innerHTML += "<p>Nessun dato disponibile</p>";
-    return;
+    if (snap.empty) {
+      ranking.innerHTML += "<p>Nessun dato disponibile</p>";
+      return;
+    }
+
+    const log = snap.docs[0].data();
+
+    if (!log.standings || !log.standings.length) {
+      ranking.innerHTML += "<p>Classifica non disponibile</p>";
+      return;
+    }
+
+    log.standings.forEach((p,i) => {
+      const div = document.createElement("div");
+      div.className="bg-white/10 p-2 rounded mb-1 flex justify-between";
+      div.innerHTML = `<span>${i+1}. ${p.nick}</span><span>Score: ${p.score ?? 0}</span>`;
+      ranking.appendChild(div);
+    });
+
+  } catch (err) {
+    console.error("Errore showFinalRanking:", err);
+    ranking.innerHTML += "<p>Errore nel recupero classifica</p>";
   }
-
-  const log = snap.docs[0].data();
-
-  log.standings.forEach((p,i) => {
-    const div = document.createElement("div");
-    div.className="bg-white/10 p-2 rounded mb-1 flex justify-between";
-    div.innerHTML = `<span>${i+1}. ${p.nick}</span><span>Score: ${p.score}</span>`;
-    ranking.appendChild(div);
-  });
 }
 
 window.showRanking = showFinalRanking;
