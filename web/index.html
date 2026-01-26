@@ -75,6 +75,7 @@ const ranking = document.getElementById("ranking");
 
 let timerInt = null;
 
+/* ================= TOURNAMENT STATE ================= */
 onSnapshot(doc(db,"tournament","state"), async snap => {
   if (!snap.exists()) {
     resetUI();
@@ -83,58 +84,47 @@ onSnapshot(doc(db,"tournament","state"), async snap => {
 
   const d = snap.data();
 
-  // -----------------------------
-  // TORNEO CONCLUSO (massima priorità)
-  // -----------------------------
+  // PRIORITÀ: torneo concluso
   if (d.ended === true) {
     showUI();
     title.textContent = "Tournament ended";
     stopTimer();
     matches.innerHTML = "";
     await showFinalRanking();
-    return; // importantissimo: esce qui
+    return; // esci subito
   }
 
-  // -----------------------------
-  // TORNEO IN CORSO
-  // -----------------------------
-  if (d.started === true) {
+  // Torneo in corso
+  if (d.started === true && d.round != null) {
     showUI();
     title.textContent = `Round ${d.round}`;
     ranking.classList.add("hidden");
     matches.innerHTML = "";
-
-    // Mostra solo i match del round corrente
-    if (d.round !== null && d.round !== undefined) {
-      listenMatches(d.round);
-    }
-
-    // Timer solo se start e durata presenti
+    listenMatches(d.round);
     startTimer(d.roundStart, d.roundDuration);
     return;
   }
 
-  // -----------------------------
-  // TORNEO NON INIZIATO
-  // -----------------------------
+  // Torneo non iniziato
   resetUI();
 });
 
 /* ================= MATCHES ================= */
 function listenMatches(round){
-  onSnapshot(
-    query(collection(db,"matches"), where("round","==",round)),
-    snap=>{
-      matches.innerHTML="";
-      snap.forEach(doc=>{
-        const m = doc.data();
-        const div = document.createElement("div");
-        div.className="bg-white/10 p-3 rounded text-center";
-        div.innerHTML = `<b>${m.p1}</b><br>vs<br><b>${m.p2}</b>`;
-        matches.appendChild(div);
-      });
-    }
-  );
+  if (!round) return;
+
+  const q = query(collection(db,"matches"), where("round","==",round));
+  onSnapshot(q, snap => {
+    matches.innerHTML = "";
+    snap.forEach(doc => {
+      const m = doc.data();
+      const p2 = m.p2 ?? "BYE";
+      const div = document.createElement("div");
+      div.className = "bg-white/10 p-3 rounded text-center";
+      div.innerHTML = `<b>${m.p1}</b><br>vs<br><b>${p2}</b>`;
+      matches.appendChild(div);
+    });
+  });
 }
 
 /* ================= TIMER ================= */
@@ -145,14 +135,13 @@ function startTimer(start, duration){
     return;
   }
 
-  timerInt = setInterval(()=>{
+  timerInt = setInterval(() => {
     let diff = duration - (Date.now() - start);
     if (diff < 0) diff = 0;
-    timerBox.textContent =
-      "⏱ " +
-      Math.floor(diff/60000) + "m " +
-      Math.floor(diff%60000/1000) + "s";
-  },1000);
+    const minutes = Math.floor(diff / 60000);
+    const seconds = Math.floor((diff % 60000) / 1000);
+    timerBox.textContent = `⏱ ${minutes}m ${seconds}s`;
+  }, 1000);
 }
 
 function stopTimer(){
@@ -180,7 +169,7 @@ async function showFinalRanking(){
 
   const log = snap.docs[0].data();
 
-  log.standings.forEach((p,i)=>{
+  log.standings.forEach((p,i) => {
     const div = document.createElement("div");
     div.className="bg-white/10 p-2 rounded mb-1 flex justify-between";
     div.innerHTML = `<span>${i+1}. ${p.nick}</span><span>Score: ${p.score}</span>`;
@@ -201,9 +190,10 @@ function resetUI(){
   stopTimer();
   ui.classList.add("hidden");
   intro.classList.remove("hidden");
+  matches.innerHTML = "";
+  ranking.classList.add("hidden");
 }
 </script>
 
 </body>
 </html>
-
