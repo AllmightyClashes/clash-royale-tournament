@@ -164,13 +164,16 @@ async function showFinalRanking(){
     );
 
     if (snap.empty) {
+      console.log("Errore: nessun documento in tournament_logs");
       ranking.innerHTML += "<p>Nessun dato disponibile</p>";
       return;
     }
 
     const log = snap.docs[0].data();
+    console.log("LOG RECUPERATO:", log);
 
-    if (!log.standings || !log.standings.length) {
+    if (!log.standings || !Array.isArray(log.standings) || log.standings.length === 0) {
+      console.log("Errore: log.standings mancante o vuoto");
       ranking.innerHTML += "<p>Classifica non disponibile</p>";
       return;
     }
