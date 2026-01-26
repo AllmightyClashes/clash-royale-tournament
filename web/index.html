@@ -8,57 +8,44 @@
 
 <style>
 .fade {
-  opacity:0;
-  transform:scale(.96);
-  transition:.6s ease;
+  opacity: 0;
+  transform: scale(.96);
+  transition: .6s;
 }
 .fade.show {
-  opacity:1;
-  transform:scale(1);
+  opacity: 1;
+  transform: scale(1);
 }
 </style>
 </head>
 
 <body class="relative min-h-screen text-white overflow-hidden">
 
-<!-- VIDEO -->
+<!-- VIDEO BACKGROUND -->
 <video autoplay muted loop playsinline class="absolute inset-0 w-full h-full object-cover">
   <source src="logo-animato.mp4" type="video/mp4">
 </video>
 <div class="absolute inset-0 bg-black/70"></div>
 
 <!-- INTRO -->
-<div id="introBox" class="absolute inset-0 z-10 flex items-center justify-center fade show">
-  <h1 class="text-4xl font-bold text-center">
-    ⚔ Allmighty Clashes are coming ⚔
-  </h1>
+<div id="intro" class="absolute inset-0 z-10 flex items-center justify-center fade show">
+  <h1 class="text-4xl font-bold text-center">⚔ Allmighty Clashes are coming ⚔</h1>
 </div>
 
 <!-- UI -->
 <div id="ui" class="relative z-10 p-6 max-w-4xl mx-auto hidden fade">
 
-  <!-- HEADER -->
   <div class="flex justify-between items-center mb-4">
-    <h2 id="headerTitle" class="text-xl font-bold"></h2>
-
+    <h2 id="title" class="text-xl font-bold"></h2>
     <button onclick="showRanking()" class="bg-white/20 px-4 py-2 rounded">
       RANKING
     </button>
   </div>
 
-  <!-- TIMER -->
-  <p id="timerBox" class="text-center text-2xl font-bold mb-6 hidden">
-    ⏱ <span id="timer"></span>
-  </p>
+  <p id="timerBox" class="text-center text-2xl font-bold mb-6"></p>
 
-  <!-- MATCHES -->
   <div id="matches" class="grid md:grid-cols-2 gap-4"></div>
-
-  <!-- CLASSIFICA LIVE -->
-  <div id="rankingView" class="hidden mt-6"></div>
-
-  <!-- CLASSIFICA FINALE -->
-  <div id="finalRanking" class="hidden mt-10"></div>
+  <div id="ranking" class="hidden mt-6"></div>
 
 </div>
 
@@ -66,144 +53,140 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import {
-  getFirestore, doc, collection, getDocs, onSnapshot,
-  query, where, writeBatch
+  getFirestore, doc, collection, getDocs,
+  onSnapshot, query, where, orderBy, limit
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBUjtbuQfc2drjqivgoLFEyQ9k4Un4f6fQ",
-  authDomain: "allmighty-tournaments.firebaseapp.com",
-  projectId: "allmighty-tournaments"
+  apiKey:"AIzaSyBUjtbuQfc2drjqivgoLFEyQ9k4Un4f6fQ",
+  authDomain:"allmighty-tournaments.firebaseapp.com",
+  projectId:"allmighty-tournaments"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// ---------- UI HELPERS ----------
-function showIntro(){
-  introBox.classList.remove("hidden");
-  introBox.classList.add("show");
-  ui.classList.add("hidden");
-}
+const intro = document.getElementById("intro");
+const ui = document.getElementById("ui");
+const title = document.getElementById("title");
+const timerBox = document.getElementById("timerBox");
+const matches = document.getElementById("matches");
+const ranking = document.getElementById("ranking");
 
-function showUI(){
-  introBox.classList.add("hidden");
-  ui.classList.remove("hidden");
-  ui.classList.add("show");
-}
+let timerInt = null;
 
-function resetViews(){
-  matches.innerHTML = "";
-  rankingView.classList.add("hidden");
-  finalRanking.classList.add("hidden");
-}
+/* ================= TOURNAMENT STATE ================= */
+onSnapshot(doc(db,"tournament","state"), async snap => {
+  if (!snap.exists()) {
+    resetUI();
+    return;
+  }
 
-// ---------- STATO TORNEO ----------
-onSnapshot(doc(db,"tournament","state"), async snap=>{
-  if(!snap.exists()) return;
   const d = snap.data();
 
-  resetViews();
-
-  // 🏆 TORNEO TERMINATO
-  if(d.ended){
+  if (d.started === true) {
     showUI();
-    headerTitle.textContent = "🏆 Tournament Ended";
-    timerBox.classList.add("hidden");
-
-    await showFinalRanking();
-    return;
-  }
-
-  // ⚔ TORNEO ATTIVO
-  if(d.started){
-    showUI();
-    headerTitle.textContent = `Round ${d.round}`;
-    timerBox.classList.remove("hidden");
-
+    title.textContent = `Round ${d.round}`;
+    ranking.classList.add("hidden");
+    matches.innerHTML = "";
     listenMatches(d.round);
     startTimer(d.roundStart, d.roundDuration);
-    return;
   }
 
-  // ⏳ ATTESA
-  showIntro();
+  else if (d.ended === true) {
+    showUI();
+    title.textContent = "Tournament ended";
+    stopTimer();
+    matches.innerHTML = "";
+    await showFinalRanking();
+  }
+
+  else {
+    resetUI();
+  }
 });
 
-// ---------- MATCHES ----------
+/* ================= MATCHES ================= */
 function listenMatches(round){
   onSnapshot(
     query(collection(db,"matches"), where("round","==",round)),
     snap=>{
       matches.innerHTML="";
-      snap.forEach(d=>{
-        const m=d.data();
-        const div=document.createElement("div");
+      snap.forEach(doc=>{
+        const m = doc.data();
+        const div = document.createElement("div");
         div.className="bg-white/10 p-3 rounded text-center";
-        div.innerHTML = m.p2
-          ? `<b>${m.p1}</b><br>vs<br><b>${m.p2}</b>`
-          : `${m.p1} (BYE)`;
+        div.innerHTML = `<b>${m.p1}</b><br>vs<br><b>${m.p2}</b>`;
         matches.appendChild(div);
       });
     }
   );
 }
 
-// ---------- TIMER ----------
-let timerInt;
-function startTimer(start,duration){
-  clearInterval(timerInt);
-  timerInt=setInterval(()=>{
-    let d=duration-(Date.now()-start);
-    if(d<0)d=0;
-    timer.textContent =
-      Math.floor(d/60000)+"m "+Math.floor(d%60000/1000)+"s";
+/* ================= TIMER ================= */
+function startTimer(start, duration){
+  stopTimer();
+  if (!start || !duration) {
+    timerBox.textContent = "⏱ In progress";
+    return;
+  }
+
+  timerInt = setInterval(()=>{
+    let diff = duration - (Date.now() - start);
+    if (diff < 0) diff = 0;
+    timerBox.textContent =
+      "⏱ " +
+      Math.floor(diff/60000) + "m " +
+      Math.floor(diff%60000/1000) + "s";
   },1000);
 }
 
-// ---------- CLASSIFICA LIVE ----------
-function showRanking(){
-  rankingView.innerHTML="";
-  rankingView.classList.remove("hidden");
-  finalRanking.classList.add("hidden");
+function stopTimer(){
+  clearInterval(timerInt);
+  timerBox.textContent = "⏱ Tournament finished";
+}
 
-  getDocs(collection(db,"players")).then(snap=>{
-    let players=[];
-    snap.forEach(doc=>{
-      const p=doc.data();
-      if(!p.dropped) players.push(p);
-    });
+/* ================= RANKING ================= */
+async function showFinalRanking(){
+  ranking.innerHTML = "<h3 class='text-lg font-bold mb-2'>Final ranking</h3>";
+  ranking.classList.remove("hidden");
 
-    players.sort((a,b)=> (b.score??0)-(a.score??0));
+  const snap = await getDocs(
+    query(
+      collection(db,"tournament_logs"),
+      orderBy("endedAt","desc"),
+      limit(1)
+    )
+  );
 
-    players.forEach((p,i)=>{
-      const div=document.createElement("div");
-      div.className="bg-white/10 p-2 rounded mb-1 flex justify-between";
-      div.innerHTML=`<span>${i+1}. ${p.nick}</span><span>Score: ${p.score??0}</span>`;
-      rankingView.appendChild(div);
-    });
+  if (snap.empty) {
+    ranking.innerHTML += "<p>Nessun dato disponibile</p>";
+    return;
+  }
+
+  const log = snap.docs[0].data();
+
+  log.standings.forEach((p,i)=>{
+    const div = document.createElement("div");
+    div.className="bg-white/10 p-2 rounded mb-1 flex justify-between";
+    div.innerHTML = `<span>${i+1}. ${p.nick}</span><span>Score: ${p.score}</span>`;
+    ranking.appendChild(div);
   });
 }
 
-// ---------- CLASSIFICA FINALE ----------
-async function showFinalRanking(){
-  finalRanking.innerHTML="";
-  finalRanking.classList.remove("hidden");
-  finalRanking.classList.add("show");
+window.showRanking = showFinalRanking;
 
-  const snap = await getDocs(collection(db,"players"));
-  let players=[];
-  snap.forEach(doc=>players.push(doc.data()));
-  players.sort((a,b)=> (b.score??0)-(a.score??0));
+/* ================= UI HELPERS ================= */
+function showUI(){
+  intro.classList.add("hidden");
+  ui.classList.remove("hidden");
+  ui.classList.add("show");
+}
 
-  finalRanking.innerHTML="<h2 class='text-xl font-bold mb-4'>Classifica finale</h2>";
-
-  players.forEach((p,i)=>{
-    const div=document.createElement("div");
-    div.className="bg-white/10 p-2 rounded mb-1 flex justify-between";
-    div.innerHTML=`<span>${i+1}. ${p.nick}</span><span>Score: ${p.score??0}</span>`;
-    finalRanking.appendChild(div);
-  });
+function resetUI(){
+  stopTimer();
+  ui.classList.add("hidden");
+  intro.classList.remove("hidden");
 }
 </script>
 
