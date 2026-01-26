@@ -75,7 +75,6 @@ const ranking = document.getElementById("ranking");
 
 let timerInt = null;
 
-/* ================= TOURNAMENT STATE ================= */
 onSnapshot(doc(db,"tournament","state"), async snap => {
   if (!snap.exists()) {
     resetUI();
@@ -84,26 +83,41 @@ onSnapshot(doc(db,"tournament","state"), async snap => {
 
   const d = snap.data();
 
-  if (d.started === true) {
-    showUI();
-    title.textContent = `Round ${d.round}`;
-    ranking.classList.add("hidden");
-    matches.innerHTML = "";
-    listenMatches(d.round);
-    startTimer(d.roundStart, d.roundDuration);
-  }
-
-  else if (d.ended === true) {
+  // -----------------------------
+  // TORNEO CONCLUSO (massima priorità)
+  // -----------------------------
+  if (d.ended === true) {
     showUI();
     title.textContent = "Tournament ended";
     stopTimer();
     matches.innerHTML = "";
     await showFinalRanking();
+    return; // importantissimo: esce qui
   }
 
-  else {
-    resetUI();
+  // -----------------------------
+  // TORNEO IN CORSO
+  // -----------------------------
+  if (d.started === true) {
+    showUI();
+    title.textContent = `Round ${d.round}`;
+    ranking.classList.add("hidden");
+    matches.innerHTML = "";
+
+    // Mostra solo i match del round corrente
+    if (d.round !== null && d.round !== undefined) {
+      listenMatches(d.round);
+    }
+
+    // Timer solo se start e durata presenti
+    startTimer(d.roundStart, d.roundDuration);
+    return;
   }
+
+  // -----------------------------
+  // TORNEO NON INIZIATO
+  // -----------------------------
+  resetUI();
 });
 
 /* ================= MATCHES ================= */
@@ -192,3 +206,4 @@ function resetUI(){
 
 </body>
 </html>
+
