@@ -5,143 +5,138 @@
 <title>Allmighty Clashes Tournament</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.tailwindcss.com"></script>
+
 <style>
-#ui,#finalRanking,#rankingView{
+.fade {
   opacity:0;
   transform:scale(.96);
-  transition:.6s;
+  transition:.6s ease;
 }
-#ui.show,#finalRanking.show,#rankingView.show{
+.fade.show {
   opacity:1;
   transform:scale(1);
 }
 </style>
 </head>
+
 <body class="relative min-h-screen text-white overflow-hidden">
 
 <!-- VIDEO -->
-<video autoplay muted loop playsinline
- class="absolute inset-0 w-full h-full object-cover">
+<video autoplay muted loop playsinline class="absolute inset-0 w-full h-full object-cover">
   <source src="logo-animato.mp4" type="video/mp4">
 </video>
 <div class="absolute inset-0 bg-black/70"></div>
 
-<!-- MESSAGE INIZIALE -->
-<div id="introBox" class="absolute inset-0 z-10 flex items-center justify-center">
-  <h1 class="text-4xl font-bold text-center">⚔ Allmighty Clashes are coming ⚔</h1>
+<!-- INTRO -->
+<div id="introBox" class="absolute inset-0 z-10 flex items-center justify-center fade show">
+  <h1 class="text-4xl font-bold text-center">
+    ⚔ Allmighty Clashes are coming ⚔
+  </h1>
 </div>
 
-<!-- UI TORNEO -->
-<div id="ui" class="relative z-10 p-6 max-w-4xl mx-auto hidden">
+<!-- UI -->
+<div id="ui" class="relative z-10 p-6 max-w-4xl mx-auto hidden fade">
 
-  <div id="header" class="flex justify-between items-center mb-4">
-    <h2 class="text-xl font-bold">
-      Round <span id="roundNum"></span>
-    </h2>
-    <div class="flex gap-2">
-      <button onclick="showRanking()" class="bg-white/20 px-4 py-2 rounded">
-        RANKING
-      </button>
-    </div>
+  <!-- HEADER -->
+  <div class="flex justify-between items-center mb-4">
+    <h2 id="headerTitle" class="text-xl font-bold"></h2>
+
+    <button onclick="showRanking()" class="bg-white/20 px-4 py-2 rounded">
+      RANKING
+    </button>
   </div>
 
-  <p id="timerBox" class="text-center text-2xl font-bold mb-6">
+  <!-- TIMER -->
+  <p id="timerBox" class="text-center text-2xl font-bold mb-6 hidden">
     ⏱ <span id="timer"></span>
   </p>
 
+  <!-- MATCHES -->
   <div id="matches" class="grid md:grid-cols-2 gap-4"></div>
+
+  <!-- CLASSIFICA LIVE -->
   <div id="rankingView" class="hidden mt-6"></div>
+
+  <!-- CLASSIFICA FINALE -->
   <div id="finalRanking" class="hidden mt-10"></div>
 
 </div>
 
-<!-- FIREBASE + LOGICA -->
+<!-- FIREBASE -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import {
- getFirestore, doc, collection, getDocs, onSnapshot, query, where, writeBatch
+  getFirestore, doc, collection, getDocs, onSnapshot,
+  query, where, writeBatch
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 const firebaseConfig = {
- apiKey:"AIzaSyBUjtbuQfc2drjqivgoLFEyQ9k4Un4f6fQ",
- authDomain:"allmighty-tournaments.firebaseapp.com",
- projectId:"allmighty-tournaments"
+  apiKey: "AIzaSyBUjtbuQfc2drjqivgoLFEyQ9k4Un4f6fQ",
+  authDomain: "allmighty-tournaments.firebaseapp.com",
+  projectId: "allmighty-tournaments"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Mostra intro iniziale
-setTimeout(()=> introBox.classList.add("show"), 300);
+// ---------- UI HELPERS ----------
+function showIntro(){
+  introBox.classList.remove("hidden");
+  introBox.classList.add("show");
+  ui.classList.add("hidden");
+}
+
+function showUI(){
+  introBox.classList.add("hidden");
+  ui.classList.remove("hidden");
+  ui.classList.add("show");
+}
+
+function resetViews(){
+  matches.innerHTML = "";
+  rankingView.classList.add("hidden");
+  finalRanking.classList.add("hidden");
+}
 
 // ---------- STATO TORNEO ----------
 onSnapshot(doc(db,"tournament","state"), async snap=>{
   if(!snap.exists()) return;
   const d = snap.data();
 
-  if(d.started){
-    introBox.classList.add("hidden");
-    ui.classList.remove("hidden");
-    ui.classList.add("show");
+  resetViews();
 
-    roundNum.textContent = d.round;
-    matches.innerHTML = "";
-    rankingView.classList.add("hidden");
-    finalRanking.classList.add("hidden");
+  // 🏆 TORNEO TERMINATO
+  if(d.ended){
+    showUI();
+    headerTitle.textContent = "🏆 Tournament Ended";
+    timerBox.classList.add("hidden");
+
+    await showFinalRanking();
+    return;
+  }
+
+  // ⚔ TORNEO ATTIVO
+  if(d.started){
+    showUI();
+    headerTitle.textContent = `Round ${d.round}`;
+    timerBox.classList.remove("hidden");
 
     listenMatches(d.round);
     startTimer(d.roundStart, d.roundDuration);
-
-  } else if(d.ended){
-    // Torneo concluso → mostra final ranking
-    introBox.classList.add("hidden");
-    ui.classList.remove("hidden");
-    ui.classList.add("show");
-
-    roundNum.textContent = d.round;
-    matches.innerHTML = "";
-    rankingView.classList.add("hidden");
-    finalRanking.classList.remove("hidden");
-    finalRanking.classList.add("show");
-
-    const playersSnap = await getDocs(collection(db,"players"));
-    let players=[];
-    playersSnap.forEach(doc=>players.push(doc.data()));
-    players.sort((a,b)=> (b.score??0)-(a.score??0));
-
-    finalRanking.innerHTML="<h2 class='text-xl font-bold mb-2'>Classifica finale</h2>";
-    players.forEach((p,i)=>{
-      const div=document.createElement("div");
-      div.className="bg-white/10 p-2 rounded mb-1 flex justify-between";
-      div.innerHTML=`<span>${i+1}. ${p.nick}</span><span>Score: ${p.score??0}</span>`;
-      finalRanking.appendChild(div);
-    });
-
-    // Esporta su GitHub
-    exportFinalRankingToGitHub(players);
-
-    // Reset automatico dopo 5 minuti
-    setTimeout(async ()=>{
-      const batch = writeBatch(db);
-      playersSnap.forEach(doc=>batch.update(doc.ref,{score:0,dropped:false}));
-      await batch.commit();
-
-      const matchesSnap = await getDocs(collection(db,"matches"));
-      const batch2 = writeBatch(db);
-      matchesSnap.forEach(doc=>batch2.delete(doc.ref));
-      await batch2.commit();
-      console.log("✅ Reset torneo completato");
-    }, 5*60*1000);
+    return;
   }
+
+  // ⏳ ATTESA
+  showIntro();
 });
 
 // ---------- MATCHES ----------
 function listenMatches(round){
   onSnapshot(
     query(collection(db,"matches"), where("round","==",round)),
-    s=>{
+    snap=>{
       matches.innerHTML="";
-      s.forEach(d=>{
+      snap.forEach(d=>{
         const m=d.data();
         const div=document.createElement("div");
         div.className="bg-white/10 p-3 rounded text-center";
@@ -161,11 +156,12 @@ function startTimer(start,duration){
   timerInt=setInterval(()=>{
     let d=duration-(Date.now()-start);
     if(d<0)d=0;
-    timer.textContent = Math.floor(d/60000)+"m "+Math.floor(d%60000/1000)+"s";
+    timer.textContent =
+      Math.floor(d/60000)+"m "+Math.floor(d%60000/1000)+"s";
   },1000);
 }
 
-// ---------- MOSTRA CLASSIFICA LIVE ----------
+// ---------- CLASSIFICA LIVE ----------
 function showRanking(){
   rankingView.innerHTML="";
   rankingView.classList.remove("hidden");
@@ -174,14 +170,14 @@ function showRanking(){
   getDocs(collection(db,"players")).then(snap=>{
     let players=[];
     snap.forEach(doc=>{
-      const p = doc.data();
+      const p=doc.data();
       if(!p.dropped) players.push(p);
     });
 
     players.sort((a,b)=> (b.score??0)-(a.score??0));
 
     players.forEach((p,i)=>{
-      const div = document.createElement("div");
+      const div=document.createElement("div");
       div.className="bg-white/10 p-2 rounded mb-1 flex justify-between";
       div.innerHTML=`<span>${i+1}. ${p.nick}</span><span>Score: ${p.score??0}</span>`;
       rankingView.appendChild(div);
@@ -189,30 +185,26 @@ function showRanking(){
   });
 }
 
-// ---------- EXPORT SU GITHUB ----------
-async function exportFinalRankingToGitHub(players){
-  const content = players.map((p,i)=>`${i+1}. ${p.nick} - Score: ${p.score}`).join("\n");
-  const body = `# Classifica finale\n\n${content}\n\n(Visibile per 5 minuti)`;
+// ---------- CLASSIFICA FINALE ----------
+async function showFinalRanking(){
+  finalRanking.innerHTML="";
+  finalRanking.classList.remove("hidden");
+  finalRanking.classList.add("show");
 
-  const token = "YOUR_GITHUB_TOKEN"; // inserisci qui il tuo token
-  const repo = "user/repo"; // es. user/repo
-  const path = "latest.md";
-  const message = "Final ranking tournament";
+  const snap = await getDocs(collection(db,"players"));
+  let players=[];
+  snap.forEach(doc=>players.push(doc.data()));
+  players.sort((a,b)=> (b.score??0)-(a.score??0));
 
-  await fetch(`https://api.github.com/repos/${repo}/contents/${path}`,{
-    method:"PUT",
-    headers:{
-      Authorization:`token ${token}`,
-      "Content-Type":"application/json"
-    },
-    body:JSON.stringify({
-      message,
-      content:btoa(unescape(encodeURIComponent(body))),
-      branch:"main"
-    })
+  finalRanking.innerHTML="<h2 class='text-xl font-bold mb-4'>Classifica finale</h2>";
+
+  players.forEach((p,i)=>{
+    const div=document.createElement("div");
+    div.className="bg-white/10 p-2 rounded mb-1 flex justify-between";
+    div.innerHTML=`<span>${i+1}. ${p.nick}</span><span>Score: ${p.score??0}</span>`;
+    finalRanking.appendChild(div);
   });
 }
-
 </script>
 
 </body>
